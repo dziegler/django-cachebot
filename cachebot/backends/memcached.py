@@ -3,7 +3,7 @@ from django.core.cache.backends.base import InvalidCacheBackendError
 from django.conf import settings
 from django.utils.encoding import smart_unicode, smart_str
 
-from cache_utils.backends import version_key_decorator, version_key
+from cachebot.backends import version_key_decorator, version_key
 
 try:
     import cmemcache as memcache

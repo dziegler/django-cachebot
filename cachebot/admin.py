@@ -1,4 +1,4 @@
 from django.contrib import admin
-from cache_utils.models import SimpleCacheSignals
+from cachebot.models import CacheBotSignals
 
-admin.site.register(SimpleCacheSignals)
+admin.site.register(CacheBotSignals)

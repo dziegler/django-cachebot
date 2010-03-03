@@ -3,7 +3,7 @@
 from django.core.cache.backends import db
 from django.db import connection
 
-from cache_utils.backends import version_key_decorator, version_key
+from cachebot.backends import version_key_decorator, version_key
 
 
 class CacheClass(db.CacheClass):

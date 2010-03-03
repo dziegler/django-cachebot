@@ -1,5 +1,5 @@
-from cache_utils.tests.base_tests import BasicCacheTests, RelatedCacheTests, ExtraRelatedCacheTests
-from cache_utils.tests.models import FirstModel, SecondModel, ThirdModel
+from cachebot.tests.base_tests import BasicCacheTests, RelatedCacheTests, ExtraRelatedCacheTests
+from cachebot.tests.models import FirstModel, SecondModel, ThirdModel
 
 class ValuesBasicCacheTests1(BasicCacheTests):
     

@@ -10,9 +10,9 @@ from django.utils.hashcompat import md5_constructor
 from django.db.models.signals import post_save, pre_delete, class_prepared
 
 
-from cache_utils import CACHE_SECONDS, CACHE_VERSION
-from cache_utils.models import SimpleCacheSignals
-from cache_utils.utils import get_invalidation_key, get_values
+from cachebot import CACHE_SECONDS, CACHE_PREFIX
+from cachebot.models import CacheBotSignals
+from cachebot.utils import get_invalidation_key, get_values
 
 
 class CacheSignals(object):
@@ -24,7 +24,7 @@ class CacheSignals(object):
     try:
         __shared_state = dict(
             simplecache_signals = {},
-            simplecache_signal_imports = dict([(s.__unicode__(), s.accessor_path) for s in SimpleCacheSignals.objects.all()]),
+            simplecache_signal_imports = dict([(s.__unicode__(), s.accessor_path) for s in CacheBotSignals.objects.all()]),
         )
     except:
         __shared_state = dict(
@@ -50,7 +50,7 @@ class CacheSignals(object):
         if (accessor_path, lookup_type, negate) not in accessor_set:  
             # can't use get_or_create here
             try:               
-                SimpleCacheSignals.objects.filter(
+                CacheBotSignals.objects.filter(
                     import_path=model_class.__module__,
                     module_name=model_class.__name__,
                     accessor_path=accessor_path,
@@ -58,7 +58,7 @@ class CacheSignals(object):
                     exclude=negate
                 )[0]
             except IndexError:
-                SimpleCacheSignals.objects.create(
+                CacheBotSignals.objects.create(
                     import_path=model_class.__module__,
                     module_name=model_class.__name__,
                     accessor_path=accessor_path,

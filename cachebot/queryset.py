@@ -12,14 +12,14 @@ from django.db.models.sql.where import WhereNode
 from django.utils.hashcompat import md5_constructor
 
 
-from cache_utils.signals import cache_signals, post_update
-from cache_utils.utils import get_invalidation_key, get_values
-from cache_utils import CACHE_SECONDS
-from cache_utils.models import SimpleCacheException
+from cachebot.signals import cache_signals, post_update
+from cachebot.utils import get_invalidation_key, get_values
+from cachebot import CACHE_SECONDS
+from cachebot.models import CacheBotException
 
 RUNNING_TESTS = getattr(settings, 'RUNNING_TESTS', False)
 
-class SimpleCache(object):
+class CacheBot(object):
     
     def __init__(self, queryset, extra_args='', invalidation_only=False):
         # have to call clone for some reason
@@ -84,8 +84,8 @@ class SimpleCache(object):
     
     def cache_results(self, results):
         """
-        Create invalidation signals for these results in the form of SimpleCacheSignals.
-        A SimpleCacheSignal stores a model and it's accessor path to self.queryset.model.
+        Create invalidation signals for these results in the form of CacheBotSignals.
+        A CacheBotSignal stores a model and it's accessor path to self.queryset.model.
         """
         # cache the results     
         if not self.invalidation_only:
@@ -131,7 +131,7 @@ class SimpleCache(object):
     def _get_join_paths(self, table_alias, accessor_path):
         try:
             model_class = self.queryset._get_model_class_from_table(table_alias)
-        except SimpleCacheException:
+        except CacheBotException:
             # this is a many to many field
             model_class = [f.rel.to for m in get_models() for f in m._meta.local_many_to_many if f.m2m_db_table() == table_alias][0]
             accessor_path = model_class._meta.pk.attname
@@ -189,7 +189,7 @@ class CachedQuerySetMixin(object):
         """Cache key used to identify this query"""
         query, params = self.query.as_sql()
         query_string = (query % params).strip()
-        base_args = ('cache_utils:result_key',str(self.__class__),query_string, extra_args)
+        base_args = ('cachebot:result_key',str(self.__class__),query_string, extra_args)
         return md5_constructor('.'.join(base_args)).hexdigest()
     
     def _get_model_class_from_table(self, table):
@@ -197,7 +197,7 @@ class CachedQuerySetMixin(object):
         try:
             return [m for m in connection.introspection.installed_models([table])][0]
         except IndexError:
-            raise SimpleCacheException("Could not find model for table %s" % table)
+            raise CacheBotException("Could not find model for table %s" % table)
     
     @property
     def _related_fields(self):
@@ -399,7 +399,7 @@ class CachedQuerySetMixin(object):
         return self._clone(setup=True, _cache_query=True, _flush_fields=flush_fields)
     
     def count(self):
-        simple_cache = SimpleCache(self, 'queryset:count', invalidation_only=True)
+        simple_cache = CacheBot(self, 'queryset:count', invalidation_only=True)
         count = cache.get(simple_cache.result_key)
         if count is None:
             count = len(self)
@@ -410,7 +410,7 @@ class CachedQuerySetMixin(object):
 class CachedQuerySet(CachedQuerySetMixin, QuerySet):
     
     def iterator(self):    
-        for obj in SimpleCache(self):
+        for obj in CacheBot(self):
             yield obj
         raise StopIteration
     
@@ -425,7 +425,7 @@ class CachedQuerySet(CachedQuerySetMixin, QuerySet):
 class CachedValuesQuerySet(CachedQuerySetMixin, ValuesQuerySet):
     
     def iterator(self):      
-        for obj in SimpleCache(self):
+        for obj in CacheBot(self):
             yield obj
         raise StopIteration
     

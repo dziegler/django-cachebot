@@ -1,6 +1,6 @@
 from django.db import models
 
-class SimpleCacheSignals(models.Model):
+class CacheBotSignals(models.Model):
     import_path = models.CharField(max_length=100)
     module_name = models.CharField(max_length=50)
     accessor_path = models.CharField(max_length=100)
@@ -13,6 +13,6 @@ class SimpleCacheSignals(models.Model):
     def __unicode__(self):
         return u".".join((self.import_path,self.module_name,self.accessor_path))
     
-class SimpleCacheException(Exception):
+class CacheBotException(Exception):
     pass
     

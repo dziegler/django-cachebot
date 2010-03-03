@@ -1,4 +1,4 @@
-from cache_utils import CACHE_SECONDS
+from cachebot import CACHE_SECONDS
 
 def cache_globals(request):
     

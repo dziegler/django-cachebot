@@ -2,7 +2,7 @@ from django.core.cache.backends.base import InvalidCacheBackendError
 from django.conf import settings
 from django.utils.encoding import smart_unicode, smart_str
 
-from cache_utils.backends import memcached
+from cachebot.backends import memcached
 
 try:
     import cmemcached as memcache

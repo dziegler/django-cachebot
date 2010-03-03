@@ -7,7 +7,7 @@ from django.db.models.sql.constants import LOOKUP_SEP
 from django.db.models.base import ModelBase
 from django.db.models.query_utils import QueryWrapper
 
-from cache_utils.models import SimpleCacheException
+from cachebot.models import CacheBotException
 
 def get_invalidation_key(table_alias, accessor_path='', lookup_type='exact', negate=False, value='', save=True):
     """An invalidation key is associated with a set of cached queries. A blank accessor_path
@@ -23,7 +23,7 @@ def get_invalidation_key(table_alias, accessor_path='', lookup_type='exact', neg
         else:
             value = ''
     #print save, table_alias,accessor_path,str(value)
-    base_args = ('cache_utils:invalidation',table_alias,accessor_path,str(value))
+    base_args = ('cachebot:invalidation',table_alias,accessor_path,str(value))
     return md5_constructor(u'.'.join(base_args).encode('utf-8')).hexdigest()
 
 def get_values(instance, accessor_path):
@@ -69,7 +69,7 @@ def _get_nested_value(instance, accessor_split):
                     pass
                     
         if raise_error:
-            raise SimpleCacheException(u"%s is not a valid attribute of %s" % (accessor, instance))
+            raise CacheBotException(u"%s is not a valid attribute of %s" % (accessor, instance))
 
     if hasattr(value, 'select_reverse'):
         # check if a cached version of this reverse relation exists

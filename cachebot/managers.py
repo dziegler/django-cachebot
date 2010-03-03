@@ -1,9 +1,9 @@
-# this will not work if imported from cache_utils.managers
+# this will not work if imported from cachebot.managers
 
-class SimpleCacheManager(DjangoManager):
+class CacheBotManager(DjangoManager):
     
     def __init__(self, cache_all=False, *args, **kwargs):
-        super(SimpleCacheManager, self).__init__(*args, **kwargs)
+        super(CacheBotManager, self).__init__(*args, **kwargs)
         self.cache_all = cache_all
     
     def get_query_set(self):

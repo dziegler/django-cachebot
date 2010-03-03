@@ -3,8 +3,9 @@
 
 from django.core.management.base import BaseCommand
 from django.core.cache import cache
-from cache_utils.models import SimpleCacheSignals
-from cache_utils.signals import cache_signals
+from cachebot.models import CacheBotSignals
+from cachebot.signals import cache_signals
+
 class Command(BaseCommand):
     """
     Empty the cache
@@ -13,7 +14,7 @@ class Command(BaseCommand):
     
     def handle(self, *args, **options):
         
-        SimpleCacheSignals.objects.all().delete()
+        CacheBotSignals.objects.all().delete()
         cache_signals.simplecache_signals = {}
         cache_signals.simplecache_signal_imports = {}
         cache.clear()

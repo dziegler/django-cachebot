@@ -1,4 +1,4 @@
-from cache_utils import CACHE_VERSION
+from cachebot import CACHE_PREFIX
 
 def version_key_decorator(func):
     def inner(instance, keys, *args, **kwargs):
@@ -10,9 +10,9 @@ def version_key_decorator(func):
     return inner
 
 def version_key(k):
-    if k and k.startswith(CACHE_VERSION):
+    if k and k.startswith(CACHE_PREFIX):
         return k
     else:
-        return "%s.%s" % (CACHE_VERSION,k)
+        return "%s.%s" % (CACHE_PREFIX,k)
         
     

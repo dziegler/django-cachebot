@@ -12,9 +12,9 @@ try:
 except:
     from django.test import TestCase
 
-from cache_utils.utils import get_invalidation_key
-from cache_utils.tests.models import FirstModel, SecondModel, ThirdModel, GenericModel, ManyModel
-from cache_utils.signals import cache_signals
+from cachebot.utils import get_invalidation_key
+from cachebot.tests.models import FirstModel, SecondModel, ThirdModel, GenericModel, ManyModel
+from cachebot.signals import cache_signals
 
 
 class BaseTestCase(TestCase):

@@ -2,8 +2,8 @@ from django.db import connection
 from django.conf import settings
 from django.core.cache import cache
 
-from cache_utils.tests.base_tests import BaseTestCase, BasicCacheTests, FieldCacheTests, RelatedCacheTests, ExtraRelatedCacheTests
-from cache_utils.tests.models import FirstModel
+from cachebot.tests.base_tests import BaseTestCase, BasicCacheTests, FieldCacheTests, RelatedCacheTests, ExtraRelatedCacheTests
+from cachebot.tests.models import FirstModel
 
 class GetBasicCacheTests(BasicCacheTests):
     
@@ -103,7 +103,7 @@ class CountCacheTests(BasicCacheTests):
     
     def test_lookup(self, count=1):
         cache.clear()
-        # call count to create any SimpleCacheSignals first
+        # call count to create any CacheBotSignals first
         self.assertEqual(self.func(**self.kwargs).count(), count)
         
         connection.queries = []
