@@ -399,7 +399,8 @@ class CachedQuerySetMixin(object):
         return self._clone(setup=True, _cache_query=True, _flush_fields=flush_fields)
     
     def count(self):
-        if self._cache_query:
+        cache_query = getattr(self, '_cache_query', False)
+        if cache_query:
             simple_cache = CacheBot(self, 'queryset:count', invalidation_only=True)
             count = cache.get(simple_cache.result_key)
             if count is None:
