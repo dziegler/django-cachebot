@@ -110,7 +110,11 @@ class CountCacheTests(BasicCacheTests):
         cache.clear()
         self.assertEqual(self.func(**self.kwargs).count(), count)
         self.assertEqual(len(connection.queries), 1)
+        self.assertEqual(self.func(**self.kwargs).count(), count)
+        self.assertEqual(len(connection.queries), 1)
         cache.clear()
+        self.assertEqual(self.func(**self.kwargs).count(), count)
+        self.assertEqual(len(connection.queries), 2)
         self.assertEqual(self.func(**self.kwargs).count(), count)
         self.assertEqual(len(connection.queries), 2)
     

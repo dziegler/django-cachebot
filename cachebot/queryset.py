@@ -399,12 +399,18 @@ class CachedQuerySetMixin(object):
         return self._clone(setup=True, _cache_query=True, _flush_fields=flush_fields)
     
     def count(self):
-        simple_cache = CacheBot(self, 'queryset:count', invalidation_only=True)
-        count = cache.get(simple_cache.result_key)
-        if count is None:
-            count = len(self)
-            cache.add(simple_cache.result_key, count, CACHE_SECONDS)
-        return count
+        if self._cache_query:
+            simple_cache = CacheBot(self, 'queryset:count', invalidation_only=True)
+            count = cache.get(simple_cache.result_key)
+            if count is None:
+                count = len(self)
+                cache.add(simple_cache.result_key, count, CACHE_SECONDS)
+            return count
+        else:
+            if self._result_cache is not None and not self._iter:
+                return len(self._result_cache)
+
+            return self.query.get_count()
     
         
 class CachedQuerySet(CachedQuerySetMixin, QuerySet):

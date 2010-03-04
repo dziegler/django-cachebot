@@ -99,6 +99,10 @@ def pre_delete_simplecache(sender, instance, **kwargs):
     invalidate_cache(sender, (instance,))
 
 
+def invalidate_object(instance):
+    invalidate_cache(type(instance), (instance,))
+
+
 def invalidate_cache(model_class, objects, **extra_keys):
     """
     Flushes the cache of any cached objects associated with this instance.
