@@ -101,14 +101,11 @@ Caveats (Important!)
         objects = DjangoManager()
 
 
-3. Adding/Removing objects with a ManyRelatedManager will not automatically invalidate. For example::
+3. Adding/Removing objects with a ManyRelatedManager will not automatically invalidate. This is because signals for these types of operations are not in Django until 1.2. Until then, you'll need to manually invalidate these queries like so::
+
+    from cachebot.signals import invalidate_object
     
     user.friends.add(friend)
-
-will NOT invalidate the cache. This is because signals for these types of operations are not in Django until 1.2. Until then, you'll need to manually invalidate these queries like so::
-
-    user.friends.add(friend)
-    from cachebot.signals import invalidate_object
     invalidate_object(user)
     invalidate_object(friend)
 
