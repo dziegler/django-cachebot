@@ -110,6 +110,7 @@ class CountCacheTests(BasicCacheTests):
         self.assertEqual(len(connection.queries), 1)
         self.assertEqual(self.func(**self.kwargs).count(), count)
         self.assertEqual(len(connection.queries), 1)
+        
     
     def test_save_signal(self, obj=None):
         if obj is None:

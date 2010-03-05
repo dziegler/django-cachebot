@@ -8,7 +8,7 @@ from django.conf import settings
 from django.utils.http import urlquote
 from django.utils.hashcompat import md5_constructor
 from django.db.models.signals import post_save, pre_delete, class_prepared
-
+from django.db import connection
 
 from cachebot import CACHE_SECONDS, CACHE_PREFIX
 from cachebot.models import CacheBotSignals
@@ -21,15 +21,9 @@ class CacheSignals(object):
     """
     # Use the Borg pattern to share state between all instances. Details at
     # http://aspn.activestate.com/ASPN/Cookbook/Python/Recipe/66531.
-    try:
-        __shared_state = dict(
+    __shared_state = dict(
             cachebot_signals = {},
-            cachebot_signal_imports = dict([(s.__unicode__(), s.accessor_path) for s in CacheBotSignals.objects.all()]),
-        )
-    except:
-        __shared_state = dict(
-            cachebot_signals = {},
-            cachebot_signal_imports = {},
+            cachebot_signal_imports = {}
         )
         
     def __init__(self):
@@ -73,6 +67,18 @@ cache_signals = CacheSignals()
 
 def load_cache_signals(sender, **kwargs):
     """On startup, create signals for registered models"""
+    
+    if not cache_signals.cachebot_signal_imports:
+        # Have to load directly from db, because CacheBotSignals is not prepared yet
+        cursor = connection.cursor()
+        try:
+            cursor.execute("SELECT * FROM %s" % CacheBotSignals._meta.db_table)
+            results = cursor.cursor.cursor.fetchall()
+            cache_signals.cachebot_signal_imports = dict([('.'.join(r[1:3]),r[3:]) for r in results])
+        except Exception, ex:
+            # This should only happen on syncdb...but there's not really a good way to catch this error
+            pass
+            
     mod = u'.'.join((sender.__module__,sender.__name__))
     if mod in cache_signals.cachebot_signal_imports:
         path_tuple = cache_signals.cachebot_signal_imports[mod]
