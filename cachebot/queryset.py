@@ -6,7 +6,7 @@ from django.conf import settings
 from django.db import connection
 from django.db.models import get_models
 from django.db.models.query import QuerySet, ValuesQuerySet, ITER_CHUNK_SIZE
-from django.db.models.fields.related import ForeignRelatedObjectsDescriptor,  ReverseManyRelatedObjectsDescriptor,  ManyRelatedObjectsDescriptor, ReverseSingleRelatedObjectDescriptor
+from django.db.models.fields.related import ForeignRelatedObjectsDescriptor, ReverseManyRelatedObjectsDescriptor, ManyRelatedObjectsDescriptor, ReverseSingleRelatedObjectDescriptor
 from django.db.models.sql.constants import LOOKUP_SEP
 from django.db.models.sql.where import WhereNode
 from django.utils.hashcompat import md5_constructor
@@ -349,7 +349,7 @@ class CachedQuerySetMixin(object):
                     for item in related_queryset.iterator():
                         target_map.setdefault(getattr(item, 'main_id'), []).append(item)
                 else:
-                    raise ImproperlyConfigured, "Unsupported mapping %s %s" % (v, descriptor)
+                    raise ImproperlyConfigured, "Unsupported mapping %s %s" % (val, descriptor)
                 target_maps[key]=target_map
         self._target_maps = target_maps   
 
@@ -365,20 +365,37 @@ class CachedQuerySetMixin(object):
         """
         Like select_related, but follows reverse and m2m foreign relations. Example usage:
         
-        article_list = Article.objects.select_reverse({'books':'book_set'})
+        article_list = Article.objects.select_reverse('book_set')
 
         for article in article_list:
             # these will return the same queryset
-            print article.books
+            print article.book_set_cache
             print article.book_set.all() 
         
         If there are N Articles belonging to K Books, this will return N + K results. The actual
-        reversed book queryset would be cached in article_list._target_maps['books']
+        reversed book queryset would be cached in article_list._target_maps['book_set_cache']
+        
+        Nested queries are also supported:
+        
+        article_list = Article.objects.select_reverse('book_set','book_set__publisher_set')
+
+        for article in article_list:
+            
+            # these will return the same queryset
+            for book in article.book_set_cache:
+                print book.publisher_set_cache
+                print book.publisher_set.all()
+            
+            # these will return the same queryset
+            for book in article.book_set.all():
+                print book.publisher_set_cache
+                print book.publisher_set.all()
+             
         
         This could probably be better, because it does a SQL query for each reverse or m2m foreign
         relation in select_reverse, i.e. 
         
-        Article.objects.select_reverse({'books':'book_set','authors':'author_set'})
+        Article.objects.select_reverse('book_set','author_set')
         
         will be 3 SQL queries. This is a lot better than the alternative of a separate SQL query
         for each article in article_list, but it'd be nice to be able to do the whole thing in 1.
