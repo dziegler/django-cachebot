@@ -128,7 +128,7 @@ Caveats (Important!)
 
 .. _django-memcache-status: http://github.com/bartTC/django-memcache-status
 
-Dependecies
+Dependencies
 *************
 
 * Django 1.1.1
