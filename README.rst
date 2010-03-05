@@ -11,7 +11,7 @@ Installation
     python setup.py install
     
 2. Add ``cachebot`` to your ``INSTALLED_APPS``
-3. Set a cache backend to one of the backends in cachebots.backends, for instance:: 
+3. Set a cache backend to one of the backends in ``cachebots.backends``, for instance:: 
 
     CACHE_BACKEND = 'cachebot.backends.memcached://127.0.0.1:11211/?timeout=2591000'
 
@@ -28,7 +28,7 @@ Supposed you had a query that looked like this and you wanted to cache it::
 
     Photo.objects.filter(user=user, status=2)
 
-Just add .cache() to the queryset chain like so::
+Just add ``.cache()`` to the queryset chain like so::
 
     Photo.objects.cache().filter(user=user, status=2)
 
@@ -39,7 +39,7 @@ This query will get invalidated if any of the following conditions are met::
     3. A Photo is modified and has status = 2.
     4. A Photo is modified and has user = user.
 
-This invalidation criteria is probably too cautious, because we don't want to invalidate this cache every time a Photo with status = 2 is saved. To fine tune the invalidation criteria, we can specify to only invalidate on certain fields. For example::
+This invalidation criteria is probably too cautious, because we don't want to invalidate this cache every time a Photo with ``status = 2`` is saved. To fine tune the invalidation criteria, we can specify to only invalidate on certain fields. For example::
     
     Photo.objects.cache('user').filter(user=user, status=2)
 
@@ -78,13 +78,14 @@ if ``CACHEBOT_CACHE_ALL = True``, all queries will automatically be cached. This
 
 
 ``CACHE_PREFIX``  default: ''
+
 Suppose you have a development and production server sharing the same memcached server. Normally this is a bad idea because each server might be overwriting the other server's cache keys. If you add ``CACHE_PREFIX`` to your settings, all cache keys will have that prefix appended to them so you can avoid this problem.
 
 
 Caveats (Important!)
 ********************
 
-1. Django-cachebot only works with Django 1.1.1. It's possible that it could work on other versions with some minor tweaking, but I haven't tested it.
+1. django-cachebot only works with Django 1.1.1. It's possible that it could work on other versions with some minor tweaking, but I haven't tested it.
 
 
 2. Symmetric ManyToMany fields will break. Sorry, I'm working on it. If you have a model that uses one of these and you're using CacheBotManager as the default manager, you should fall back to the regular Django manager like so::
@@ -107,7 +108,7 @@ will NOT invalidate the cache. This is because signals for these types of operat
     invalidate_object(friend)
 
 
-4. count() queries will not get cached. Still working on this, sorry.
+4. ``count()`` queries will not get cached. Still working on this, sorry.
 
 
 5. If you're invalidating on a field that is in a range or exclude query, these queries will get invalidated when anything in the table changes. For example::
