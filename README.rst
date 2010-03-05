@@ -6,6 +6,7 @@ Django-cachebot provides automated caching and invalidation for the Django ORM.
 
 Installation
 ************
+
 1. Download django-cachebot and run::
     
     python setup.py install
@@ -24,6 +25,7 @@ This will make CacheBotManager the default manager used by your Django app. Alth
 
 Usage
 ******
+
 Supposed you had a query that looked like this and you wanted to cache it::
 
     Photo.objects.filter(user=user, status=2)
@@ -53,12 +55,15 @@ This query will get invalidated if any of the following conditions are met::
 django-cachebot can also handle select_related, forward relations, and reverse relations, ie::
 
     Photo.objects.select_related().cache('user').filter(user__username="david", status=2)
+    
     Photo.objects.cache('user').filter(user__username="david", status=2)
+    
     Photo.objects.cache('message__sender').filter(message__sender=user, status=2)
 
 
 Settings
 ********
+
 ``CACHEBOT_CACHE_GET``  default: False
 
 if ``CACHEBOT_CACHE_GET = True``, all objects.get queries will automatically be cached. This can be overridden at the manager level like so::
@@ -115,8 +120,6 @@ will NOT invalidate the cache. This is because signals for these types of operat
 
     Photo.objects.cache('user').filter(user__in=users, status=2)
 
-    or::
-
     Photo.objects.cache('user').exclude(user=user, status=2)
     
 would get invalidated when anything on the User table changed.
@@ -134,3 +137,9 @@ Dependecies
 *************
 
 * Django 1.1.1
+
+
+Acknowledgements
+****************
+
+Thanks to the good folks at Mingle LLC and SocialHour for letting me open source this
