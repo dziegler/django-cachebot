@@ -23,30 +23,30 @@ class CacheSignals(object):
     # http://aspn.activestate.com/ASPN/Cookbook/Python/Recipe/66531.
     try:
         __shared_state = dict(
-            simplecache_signals = {},
-            simplecache_signal_imports = dict([(s.__unicode__(), s.accessor_path) for s in CacheBotSignals.objects.all()]),
+            cachebot_signals = {},
+            cachebot_signal_imports = dict([(s.__unicode__(), s.accessor_path) for s in CacheBotSignals.objects.all()]),
         )
     except:
         __shared_state = dict(
-            simplecache_signals = {},
-            simplecache_signal_imports = {},
+            cachebot_signals = {},
+            cachebot_signal_imports = {},
         )
         
     def __init__(self):
         self.__dict__ = self.__shared_state
 
     def create_signal(self, model_class, accessor_path, lookup_type, negate):
-        post_update.connect(post_update_simplecache, sender=model_class)
-        post_save.connect(post_save_simplecache, sender=model_class)
-        pre_delete.connect(pre_delete_simplecache, sender=model_class)
+        post_update.connect(post_update_cachebot, sender=model_class)
+        post_save.connect(post_save_cachebot, sender=model_class)
+        pre_delete.connect(pre_delete_cachebot, sender=model_class)
         lookup_key = _make_id(model_class)
-        accessor_set = self.simplecache_signals.get(lookup_key, set())
+        accessor_set = self.cachebot_signals.get(lookup_key, set())
         accessor_set.add((accessor_path, lookup_type, negate))
-        self.simplecache_signals[lookup_key] = accessor_set
+        self.cachebot_signals[lookup_key] = accessor_set
         
     def register(self, model_class, accessor_path, lookup_type, negate=False):
         lookup_key = _make_id(model_class)
-        accessor_set = self.simplecache_signals.get(lookup_key, set())
+        accessor_set = self.cachebot_signals.get(lookup_key, set())
         if (accessor_path, lookup_type, negate) not in accessor_set:  
             # can't use get_or_create here
             try:               
@@ -74,8 +74,8 @@ cache_signals = CacheSignals()
 def load_cache_signals(sender, **kwargs):
     """On startup, create signals for registered models"""
     mod = u'.'.join((sender.__module__,sender.__name__))
-    if mod in cache_signals.simplecache_signal_imports:
-        path_tuple = cache_signals.simplecache_signal_imports[mod]
+    if mod in cache_signals.cachebot_signal_imports:
+        path_tuple = cache_signals.cachebot_signal_imports[mod]
         cache_signals.create_signal(sender, path_tuple[0], path_tuple[0], path_tuple[2])
 class_prepared.connect(load_cache_signals)
 
@@ -84,18 +84,18 @@ post_update = django.dispatch.Signal(providing_args=["sender", "instance"])
 
 ### INVALIDATION FUNCTIONS ###
 
-def post_update_simplecache(sender, instance, **kwargs):
+def post_update_cachebot(sender, instance, **kwargs):
     ## TODO auto add select reverse and related ##
     lookup_key = _make_id(sender)
-    accessor_set = cache_signals.simplecache_signals.get(lookup_key, set())
+    accessor_set = cache_signals.cachebot_signals.get(lookup_key, set())
     invalidate_cache(sender, instance)
 
 
-def post_save_simplecache(sender, instance, created, **kwargs):
+def post_save_cachebot(sender, instance, **kwargs):
     invalidate_cache(sender, (instance,))
 
 
-def pre_delete_simplecache(sender, instance, **kwargs):
+def pre_delete_cachebot(sender, instance, **kwargs):
     invalidate_cache(sender, (instance,))
 
 
@@ -117,7 +117,7 @@ def invalidate_cache(model_class, objects, **extra_keys):
     """
     invalidation_dict = {}
     lookup_key = _make_id(model_class)
-    accessor_set = cache_signals.simplecache_signals.get(lookup_key, set())
+    accessor_set = cache_signals.cachebot_signals.get(lookup_key, set())
     for obj in objects:
         for (accessor_path, lookup_type, negate) in accessor_set:
             for value in get_values(obj, accessor_path):

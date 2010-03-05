@@ -133,7 +133,10 @@ class CacheBot(object):
             model_class = self.queryset._get_model_class_from_table(table_alias)
         except CacheBotException:
             # this is a many to many field
-            model_class = [f.rel.to for m in get_models() for f in m._meta.local_many_to_many if f.m2m_db_table() == table_alias][0]
+            try:
+                model_class = [f.rel.to for m in get_models() for f in m._meta.local_many_to_many if f.m2m_db_table() == table_alias][0]
+            except:
+                import ipdb; ipdb.set_trace()
             accessor_path = model_class._meta.pk.attname
         yield model_class, accessor_path
 
@@ -195,7 +198,7 @@ class CachedQuerySetMixin(object):
     def _get_model_class_from_table(self, table):
         """Helper method that accepts a table name and returns the Django model class it belongs to"""
         try:
-            return [m for m in connection.introspection.installed_models([table])][0]
+            return [m for m in get_models() if connection.introspection.table_name_converter(m._meta.db_table) in map(connection.introspection.table_name_converter,[table])][0]
         except IndexError:
             raise CacheBotException("Could not find model for table %s" % table)
     
