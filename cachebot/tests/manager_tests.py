@@ -100,23 +100,16 @@ class CountCacheTests(BasicCacheTests):
     def setUp(self):
         settings.DEBUG = True
         BasicCacheTests.setUp(self)
+        # call count to create any CacheBotSignals first
+        self.func(**self.kwargs).count()
+        cache.clear()
     
     def test_lookup(self, count=1):
-        cache.clear()
-        # call count to create any CacheBotSignals first
-        self.assertEqual(self.func(**self.kwargs).count(), count)
-        
         connection.queries = []
-        cache.clear()
         self.assertEqual(self.func(**self.kwargs).count(), count)
         self.assertEqual(len(connection.queries), 1)
         self.assertEqual(self.func(**self.kwargs).count(), count)
         self.assertEqual(len(connection.queries), 1)
-        cache.clear()
-        self.assertEqual(self.func(**self.kwargs).count(), count)
-        self.assertEqual(len(connection.queries), 2)
-        self.assertEqual(self.func(**self.kwargs).count(), count)
-        self.assertEqual(len(connection.queries), 2)
     
     def test_save_signal(self, obj=None):
         if obj is None:
@@ -131,7 +124,16 @@ class CountCacheTests(BasicCacheTests):
         self.test_lookup(count=1)
         obj.delete()
         self.test_lookup(count=0)
+
+class ExtraRelatedCountCacheTests(ExtraRelatedCacheTests):
     
+    def setUp(self):
+        settings.DEBUG = True
+        ExtraRelatedCacheTests.setUp(self)
+        # call count to create any CacheBotSignals first
+        self.func(**self.kwargs).count()
+        cache.clear()
+        
     def test_related_save_signal(self):
         self.test_save_signal(obj=self.obj.obj)
     
