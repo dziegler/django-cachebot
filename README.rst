@@ -37,7 +37,7 @@ Just add ``.cache()`` to the queryset chain like so::
 This query will get invalidated if any of the following conditions are met::
 
     1. One of the objects returned by the query is altered.
-    2. user is altered.
+    2. The user is altered.
     3. A Photo is modified and has status = 2.
     4. A Photo is modified and has user = user.
 
@@ -48,7 +48,7 @@ This invalidation criteria is probably too cautious, because we don't want to in
 This query will get invalidated if any of the following conditions are met::
 
     1. One of the objects returned by the query is altered.
-    2. user is altered.
+    2. The user is altered.
     3. A Photo is modified and has user = user.
 
 
