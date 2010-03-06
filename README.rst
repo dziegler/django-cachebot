@@ -20,7 +20,7 @@ Installation
     
     python manage.py patch_django_manager
 
-This will make CacheBotManager the default manager used by your Django app. Although this last step is optional, it's highly recommended because it adds a post_update signal. Queryset.update doesn't trigger save and delete signals, which are needed for invalidation. Also, if you turn caching off, your queryset behavior should be the same anyways.
+This will patch Django and make CacheBotManager the default manager used by your Django project.
 
 
 Usage
