@@ -179,7 +179,9 @@ class DjangoManager(object):
     def _update(self, values, **kwargs):
         return self.get_query_set()._update(values, **kwargs)
 
-from cachebot import CACHEBOT_CACHE_GET, CACHEBOT_CACHE_ALL
+from django.db.models.signals import post_save, pre_delete
+from cachebot import CACHEBOT_CACHE_GET, CACHEBOT_CACHE_ALL, post_update
+
 
 class Manager(DjangoManager):
     """
@@ -195,6 +197,24 @@ class Manager(DjangoManager):
         super(Manager, self).__init__(*args, **kwargs)
         self.cache_all = cache_all
         self.cache_get = cache_get
+    
+    def contribute_to_class(self, cls, name):
+        post_update.connect(self.post_update, sender=cls)
+        post_save.connect(self.post_save, sender=cls)
+        pre_delete.connect(self.pre_delete, sender=cls)
+        return super(Manager, self).contribute_to_class(cls, name)
+    
+    def post_update(self, sender, instance, **kwargs):
+        from cachebot.signals import post_update_cachebot
+        post_update_cachebot(sender, instance)
+    
+    def post_save(self, sender, instance, **kwargs):
+        from cachebot.signals import post_save_cachebot
+        post_save_cachebot(sender, instance)
+    
+    def pre_delete(self, sender, instance, **kwargs):
+        from cachebot.signals import pre_delete_cachebot
+        pre_delete_cachebot(sender, instance)
     
     def get_query_set(self):
         from cachebot.queryset import CachedQuerySet

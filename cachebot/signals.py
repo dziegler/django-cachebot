@@ -1,14 +1,11 @@
 from itertools import chain
 from time import time
 
-import django.dispatch
 from django.core.cache import cache
-from django.dispatch.dispatcher import _make_id
 from django.conf import settings
 from django.utils.http import urlquote
 from django.utils.hashcompat import md5_constructor
-from django.db.models.signals import post_save, pre_delete, class_prepared
-from django.db import connection
+from django.db.models.signals import class_prepared
 
 from cachebot import CACHE_SECONDS, CACHE_PREFIX
 from cachebot.models import CacheBotSignals
@@ -17,87 +14,94 @@ from cachebot.utils import get_invalidation_key, get_values
 
 class CacheSignals(object):
     """
-    A cache that stores installed cache signals.
+    An object that handles installed cache signals.
     """
-    # Use the Borg pattern to share state between all instances. Details at
-    # http://aspn.activestate.com/ASPN/Cookbook/Python/Recipe/66531.
+    
     __shared_state = dict(
-            cachebot_signals = {},
-            cachebot_signal_imports = {}
-        )
-        
+        ready = False
+    )
+    
     def __init__(self):
         self.__dict__ = self.__shared_state
+ 
+    def get_lookup_key(self, model_class):
+        return md5_constructor('.'.join(('cachesignals', model_class._meta.db_table))).hexdigest()
+    
+    def get_signals(self, model_class):
+        lookup_key = self.get_lookup_key(model_class)
+        accessor_set = cache.get(lookup_key)
+        if accessor_set is None:
+            accessor_set = set()
+        return accessor_set
+    
+    def set_signals(self, model_class, accessor_set):
+        lookup_key = self.get_lookup_key(model_class)
+        cache.set(lookup_key, accessor_set, CACHE_SECONDS)
 
-    def create_signal(self, model_class, accessor_path, lookup_type, negate):
-        post_update.connect(post_update_cachebot, sender=model_class)
-        post_save.connect(post_save_cachebot, sender=model_class)
-        pre_delete.connect(pre_delete_cachebot, sender=model_class)
-        lookup_key = _make_id(model_class)
-        accessor_set = self.cachebot_signals.get(lookup_key, set())
+    def create_signal(self, model_class, accessor_path, lookup_type, negate):        
+        accessor_set = self.get_signals(model_class)
         accessor_set.add((accessor_path, lookup_type, negate))
-        self.cachebot_signals[lookup_key] = accessor_set
+        self.set_signals(model_class, accessor_set)
         
     def register(self, model_class, accessor_path, lookup_type, negate=False):
-        lookup_key = _make_id(model_class)
-        accessor_set = self.cachebot_signals.get(lookup_key, set())
+        accessor_set = self.get_signals(model_class)
         if (accessor_path, lookup_type, negate) not in accessor_set:  
             # can't use get_or_create here
             try:               
                 CacheBotSignals.objects.filter(
-                    import_path=model_class.__module__,
-                    module_name=model_class.__name__,
+                    table_name=model_class._meta.db_table,
                     accessor_path=accessor_path,
                     lookup_type=lookup_type,
                     exclude=negate
                 )[0]
             except IndexError:
                 CacheBotSignals.objects.create(
-                    import_path=model_class.__module__,
-                    module_name=model_class.__name__,
+                    table_name=model_class._meta.db_table,
                     accessor_path=accessor_path,
                     lookup_type=lookup_type,
                     exclude=negate
                 )
-                                         
-            self.create_signal(model_class, accessor_path, lookup_type, negate)
+            accessor_set.add((accessor_path, lookup_type, negate))
+            self.set_signals(model_class, accessor_set)
 
 cache_signals = CacheSignals()
 
 
 def load_cache_signals(sender, **kwargs):
-    """On startup, create signals for registered models"""
+    """On startup, sync signals with registered models"""
+    from django.db import connection
+
     
-    if not cache_signals.cachebot_signal_imports:
+    if not cache_signals.ready:
         # Have to load directly from db, because CacheBotSignals is not prepared yet
         cursor = connection.cursor()
         try:
             cursor.execute("SELECT * FROM %s" % CacheBotSignals._meta.db_table)
             results = cursor.cursor.cursor.fetchall()
             for r in results:
-                lookup_id = '.'.join(r[1:3])
-                cache_signals.cachebot_signal_imports.setdefault(lookup_id, set())
-                cache_signals.cachebot_signal_imports[lookup_id].add(r[3:])
+                lookup_key = md5_constructor('.'.join(('cachesignals', r[1]))).hexdigest()
+                accessor_set = cache.get(key)
+                if accessor_set is None:
+                    accessor_set = set()
+                accessor_set.add(r[1:3])
+                cache.set(lookup_key, accessor_set, CACHE_SECONDS)
                 
         except Exception, ex:
             # This should only happen on syncdb...but there's not really a good way to catch this error
             pass
+        cache_signals.ready = True
             
-    mod = u'.'.join((sender.__module__,sender.__name__))
-    if mod in cache_signals.cachebot_signal_imports:
-        for path_tuple in cache_signals.cachebot_signal_imports[mod]:
-            cache_signals.create_signal(sender, path_tuple[0], path_tuple[1], path_tuple[2])
+    accessor_set = cache_signals.get_signals(sender)
+    for path_tuple in accessor_set:
+        cache_signals.create_signal(sender, path_tuple[0], path_tuple[1], path_tuple[2])
 class_prepared.connect(load_cache_signals)
 
-
-post_update = django.dispatch.Signal(providing_args=["sender", "instance"])
 
 ### INVALIDATION FUNCTIONS ###
 
 def post_update_cachebot(sender, instance, **kwargs):
     ## TODO auto add select reverse and related ##
-    lookup_key = _make_id(sender)
-    accessor_set = cache_signals.cachebot_signals.get(lookup_key, set())
+    accessor_set = cache_signals.get_signals(sender)
     invalidate_cache(sender, instance)
 
 
@@ -126,8 +130,7 @@ def invalidate_cache(model_class, objects, **extra_keys):
     a web app.
     """
     invalidation_dict = {}
-    lookup_key = _make_id(model_class)
-    accessor_set = cache_signals.cachebot_signals.get(lookup_key, set())
+    accessor_set = cache_signals.get_signals(model_class)
     for obj in objects:
         for (accessor_path, lookup_type, negate) in accessor_set:
             for value in get_values(obj, accessor_path):

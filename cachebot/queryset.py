@@ -12,9 +12,9 @@ from django.db.models.sql.where import WhereNode
 from django.utils.hashcompat import md5_constructor
 
 
-from cachebot.signals import cache_signals, post_update
+from cachebot.signals import cache_signals
 from cachebot.utils import get_invalidation_key, get_values
-from cachebot import CACHE_SECONDS
+from cachebot import CACHE_SECONDS, post_update
 from cachebot.models import CacheBotException
 
 RUNNING_TESTS = getattr(settings, 'RUNNING_TESTS', False)
