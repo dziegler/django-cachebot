@@ -86,7 +86,7 @@ def load_cache_signals(sender, **kwargs):
     mod = u'.'.join((sender.__module__,sender.__name__))
     if mod in cache_signals.cachebot_signal_imports:
         for path_tuple in cache_signals.cachebot_signal_imports[mod]:
-            cache_signals.create_signal(sender, path_tuple[0], path_tuple[0], path_tuple[2])
+            cache_signals.create_signal(sender, path_tuple[0], path_tuple[1], path_tuple[2])
 class_prepared.connect(load_cache_signals)
 
 
