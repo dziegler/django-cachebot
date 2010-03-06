@@ -74,15 +74,19 @@ def load_cache_signals(sender, **kwargs):
         try:
             cursor.execute("SELECT * FROM %s" % CacheBotSignals._meta.db_table)
             results = cursor.cursor.cursor.fetchall()
-            cache_signals.cachebot_signal_imports = dict([('.'.join(r[1:3]),r[3:]) for r in results])
+            for r in results:
+                lookup_id = '.'.join(r[1:3])
+                cache_signals.cachebot_signal_imports.setdefault(lookup_id, set())
+                cache_signals.cachebot_signal_imports[lookup_id].add(r[3:])
+                
         except Exception, ex:
             # This should only happen on syncdb...but there's not really a good way to catch this error
             pass
             
     mod = u'.'.join((sender.__module__,sender.__name__))
     if mod in cache_signals.cachebot_signal_imports:
-        path_tuple = cache_signals.cachebot_signal_imports[mod]
-        cache_signals.create_signal(sender, path_tuple[0], path_tuple[0], path_tuple[2])
+        for path_tuple in cache_signals.cachebot_signal_imports[mod]:
+            cache_signals.create_signal(sender, path_tuple[0], path_tuple[0], path_tuple[2])
 class_prepared.connect(load_cache_signals)
 
 
