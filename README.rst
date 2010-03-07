@@ -3,6 +3,7 @@ Django-cachebot
 
 Django-cachebot provides automated caching and invalidation for the Django ORM. 
 
+http://groups.google.com/group/django-cachebot
 
 Installation
 ************
