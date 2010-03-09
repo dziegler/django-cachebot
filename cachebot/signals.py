@@ -6,6 +6,7 @@ from django.conf import settings
 from django.utils.http import urlquote
 from django.utils.hashcompat import md5_constructor
 from django.db.models.signals import class_prepared
+from django.core.management.color import no_style
 
 from cachebot import CACHE_SECONDS, CACHE_PREFIX
 from cachebot.models import CacheBotSignals
@@ -71,24 +72,28 @@ def load_cache_signals(sender, **kwargs):
     """On startup, sync signals with registered models"""
     from django.db import connection
 
-    
     if not cache_signals.ready:
         # Have to load directly from db, because CacheBotSignals is not prepared yet
         cursor = connection.cursor()
         try:
             cursor.execute("SELECT * FROM %s" % CacheBotSignals._meta.db_table)
-            results = cursor.cursor.cursor.fetchall()
-            for r in results:
-                lookup_key = md5_constructor('.'.join(('cachesignals', r[1]))).hexdigest()
-                accessor_set = cache.get(key)
-                if accessor_set is None:
-                    accessor_set = set()
-                accessor_set.add(r[1:3])
-                cache.set(lookup_key, accessor_set, CACHE_SECONDS)
-                
         except Exception, ex:
-            # This should only happen on syncdb...but there's not really a good way to catch this error
-            pass
+            # This should only happen on syncdb when CacheBot tables haven't been created yet, 
+            # but there's not really a good way to catch this error
+            sql, references = connection.creation.sql_create_model(CacheBotSignals, no_style())
+            cursor.execute(sql[0])
+            cursor.execute("SELECT * FROM %s" % CacheBotSignals._meta.db_table)
+            
+        results = cursor.cursor.cursor.fetchall()
+        for r in results:
+            lookup_key = md5_constructor('.'.join(('cachesignals', r[1]))).hexdigest()
+            accessor_set = cache.get(lookup_key)
+            if accessor_set is None:
+                accessor_set = set()
+            accessor_set.add(r[1:3])
+            cache.set(lookup_key, accessor_set, CACHE_SECONDS)
+            
+    
         cache_signals.ready = True
             
     accessor_set = cache_signals.get_signals(sender)
