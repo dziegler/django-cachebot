@@ -90,7 +90,7 @@ def load_cache_signals(sender, **kwargs):
             accessor_set = cache.get(lookup_key)
             if accessor_set is None:
                 accessor_set = set()
-            accessor_set.add(r[1:3])
+            accessor_set.add(r[2:5])
             cache.set(lookup_key, accessor_set, CACHE_SECONDS)
             
     
