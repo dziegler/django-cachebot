@@ -3,6 +3,7 @@ from django.conf import settings
 from django.utils.encoding import smart_unicode, smart_str
 
 from cachebot.backends import memcached
+from cachebot.backends import version_key
 
 try:
     import cmemcached as memcache
