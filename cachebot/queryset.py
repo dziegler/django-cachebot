@@ -96,6 +96,8 @@ class CacheBot(object):
         for child, negate in self.queryset._get_where_clause(self.queryset.query.where):     
             (table_alias, field_name, db_type), lookup_type, value_annotation, params = child
             for model_class, accessor_path in self._get_join_paths(table_alias, field_name):
+                if model_class is None:
+                    continue
                 if self._is_valid_flush_path(accessor_path):  
                     cache_signals.register(model_class, accessor_path, lookup_type, negate=negate)
                     invalidation_key = get_invalidation_key(
@@ -132,18 +134,24 @@ class CacheBot(object):
         try:
             model_class = self.queryset._get_model_class_from_table(table_alias)
         except CacheBotException:
-            # this is a many to many field
+            
             try:
+                # this is a many to many field
                 model_class = [f.rel.to for m in get_models() for f in m._meta.local_many_to_many if f.m2m_db_table() == table_alias][0]
-            except:
-                import ipdb; ipdb.set_trace()
-            accessor_path = model_class._meta.pk.attname
+                accessor_path = model_class._meta.pk.attname
+            except IndexError:
+                # this is an inner join
+                model_class = None
+                accessor_path = None
+            
         yield model_class, accessor_path
 
         join_from_tables = ifilter(lambda x: x[1] == table_alias, self.queryset.query.join_map.keys())
         for join_tuple in join_from_tables:
             if join_tuple[0]:
                 for model_class, join_accessor_path in self._get_join_paths(join_tuple[0], join_tuple[2]):
+                    if model_class is None:
+                        continue
                     if join_accessor_path == model_class._meta.pk.attname:
                         for attname, related in self.queryset._get_reverse_relations(model_class):
                             join_accessor_path = attname

@@ -48,3 +48,17 @@ class ReverseExtraRelatedValuesCacheTests(ReverseExtraRelatedCacheTests, ExtraRe
         self.obj = self.thirdmodel
         self.kwargs = {'secondmodel__thirdmodel':self.obj}
     
+
+class ReverseExtraRelatedExcludeCacheTests(ReverseRelatedCacheTests, ExtraRelatedCacheTests):
+    
+    def setUp(self):
+        ExtraRelatedCacheTests.setUp(self)
+        self.manager = FirstModel.objects
+        self.func = self.manager.cache().exclude(secondmodel__thirdmodel__id=500).filter
+        self.obj = self.thirdmodel
+        self.kwargs = {'secondmodel__thirdmodel':self.obj}
+    
+    def test_extra_related_new_obj(self):
+        pass
+
+

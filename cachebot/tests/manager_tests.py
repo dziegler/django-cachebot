@@ -80,6 +80,31 @@ class ExtraRelatedExcludeCacheTests(ExtraRelatedCacheTests):
         self.func = self.manager.cache().exclude
 
 
+class ExcludeAndFilterCacheTests(BasicCacheTests):
+    
+    def setUp(self):
+        BasicCacheTests.setUp(self)
+        self.obj = self.thirdmodel
+        self.kwargs = {'id':self.obj.id+1}
+        self.func = self.manager.cache().filter(id=self.obj.id).exclude
+
+
+class ExcludeAndFilterFieldCacheTests(FieldCacheTests):
+    
+    def setUp(self):
+        FieldCacheTests.setUp(self)
+        self.kwargs = {'text':'this text is not in any model'}
+        self.func = self.manager.cache().filter(text=self.obj.text).exclude
+        
+        
+class ExtraRelatedExcludeAndFilterCacheTests(ExtraRelatedCacheTests):
+    
+    def setUp(self):
+        ExtraRelatedCacheTests.setUp(self)
+        self.kwargs = {'obj__obj':self.obj.obj.obj.id+1}
+        self.func = self.manager.cache().filter(obj__obj=self.obj.obj.obj).exclude
+       
+       
 class RangeCacheTests(ExtraRelatedCacheTests):
     
     def setUp(self):
