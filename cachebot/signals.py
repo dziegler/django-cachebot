@@ -83,8 +83,8 @@ def load_cache_signals(sender, **kwargs):
             sql, references = connection.creation.sql_create_model(CacheBotSignals, no_style())
             cursor.execute(sql[0])
             cursor.execute("SELECT * FROM %s" % CacheBotSignals._meta.db_table)
-            
-        results = cursor.cursor.cursor.fetchall()
+
+        results = cursor.fetchall()
         for r in results:
             lookup_key = md5_constructor('.'.join(('cachesignals', r[1]))).hexdigest()
             accessor_set = cache.get(lookup_key)
