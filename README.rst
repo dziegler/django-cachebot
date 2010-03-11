@@ -124,7 +124,12 @@ Caveats (Important!)
 6. You should probably use a tool like django-memcache-status_ to check on the status of your cache. If memcache overfills and starts dropping keys, it's possible that your queries might not get invalidated.
 
 
-7. It's possible that there are edge cases I've missed. django-cachebot is still in it's infancy, so you should still double check that your queries are getting cached and invalidated. Please let me know if you notice any weird discrepancies.
+7. .values_list() doesn't cache yet. You should do something like this instead::
+
+    [photo['id'] for photo in Photo.objects.cache('user').filter(user=user).values('id')]
+
+
+8. It's possible that there are edge cases I've missed. django-cachebot is still in it's infancy, so you should still double check that your queries are getting cached and invalidated. Please let me know if you notice any weird discrepancies.
 
 
 .. _django-memcache-status: http://github.com/bartTC/django-memcache-status
@@ -138,4 +143,4 @@ Dependencies
 Acknowledgements
 ****************
 
-Thanks to the good folks at Mingle LLC and SocialHour for letting me open source this
+Thanks to the good folks at Mingle LLC for letting me open source this
