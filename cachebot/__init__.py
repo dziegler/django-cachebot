@@ -9,6 +9,7 @@ try:
     CACHE_PREFIX = getattr(settings,'CACHE_PREFIX','')
     CACHEBOT_CACHE_GET = getattr(settings,'CACHEBOT_CACHE_GET',False)
     CACHEBOT_CACHE_ALL = getattr(settings,'CACHEBOT_CACHE_ALL',False)
+    CACHEBOT_TABLE_BLACKLIST = getattr(settings,'CACHEBOT_TABLE_BLACKLIST',('django_session',))
 
     post_update = django.dispatch.Signal(providing_args=["sender", "instance"])
 

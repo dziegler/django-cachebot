@@ -14,7 +14,7 @@ from django.utils.hashcompat import md5_constructor
 
 from cachebot.signals import cache_signals
 from cachebot.utils import get_invalidation_key, get_values
-from cachebot import CACHE_SECONDS, post_update
+from cachebot import CACHE_SECONDS, CACHEBOT_TABLE_BLACKLIST, post_update
 from cachebot.models import CacheBotException
 
 RUNNING_TESTS = getattr(settings, 'RUNNING_TESTS', False)
@@ -422,9 +422,12 @@ class CachedQuerySetMixin(object):
     def cache(self, *flush_fields):
         """
         Cache this queryset. If this is a query over reverse foreign relations, those fields will automatically
-        be added to select_reverse, because we need them for invalidation.
+        be added to select_reverse, because we need them for invalidation. Do not cache queries on
+        tables in CACHEBOT_TABLE_BLACKLIST
         """
-        return self._clone(setup=True, _cache_query=True, _flush_fields=flush_fields)
+        _cache_query = self.model._meta.db_table not in CACHEBOT_TABLE_BLACKLIST
+            
+        return self._clone(setup=True, _cache_query=_cache_query, _flush_fields=flush_fields)
     
     def count(self):
         cache_query = getattr(self, '_cache_query', False)
