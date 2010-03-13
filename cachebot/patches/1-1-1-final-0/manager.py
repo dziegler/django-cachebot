@@ -196,7 +196,10 @@ class Manager(DjangoManager):
     def __init__(self, cache_all=CACHEBOT_CACHE_ALL, cache_get=CACHEBOT_CACHE_GET, *args, **kwargs):
         super(Manager, self).__init__(*args, **kwargs)
         self.cache_all = cache_all
-        self.cache_get = cache_get
+        if cache_all:
+            self.cache_get = True
+        else:
+            self.cache_get = cache_get
     
     def contribute_to_class(self, cls, name):
         post_update.connect(self.post_update, sender=cls)
@@ -223,18 +226,6 @@ class Manager(DjangoManager):
         else:
             return CachedQuerySet(self.model)
     
-    def get_or_create(self, *args, **kwargs):
-        if self.cache_get:
-            return self.get_query_set().cache().get_or_create(*args, **kwargs)
-        else:
-            return self.get_query_set().get_or_create(*args, **kwargs)
-
-    def get(self, *args, **kwargs):
-        if self.cache_get:
-            return self.get_query_set().cache().get(*args, **kwargs)
-        else:
-            return self.get_query_set().get(*args, **kwargs)
-
     def cache(self, *args):
         return self.get_query_set().cache(*args)
     

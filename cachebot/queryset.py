@@ -430,6 +430,12 @@ class CachedQuerySetMixin(object):
             
         return self._clone(setup=True, _cache_query=_cache_query, _flush_fields=flush_fields)
     
+    def get(self, *args, **kwargs):
+        if self.model.objects.cache_get:
+            return super(CachedQuerySetMixin, self.cache()).get(*args, **kwargs)
+        else:
+            return super(CachedQuerySetMixin, self).get(*args, **kwargs)
+    
     def count(self):
         cache_query = getattr(self, '_cache_query', False)
         if self._result_cache is not None and not self._iter:
