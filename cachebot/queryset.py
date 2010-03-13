@@ -16,6 +16,7 @@ from cachebot.signals import cache_signals
 from cachebot.utils import get_invalidation_key, get_values
 from cachebot import CACHE_SECONDS, CACHEBOT_TABLE_BLACKLIST, post_update
 from cachebot.models import CacheBotException
+from cachebot.backends import version_key
 
 RUNNING_TESTS = getattr(settings, 'RUNNING_TESTS', False)
 
@@ -201,7 +202,7 @@ class CachedQuerySetMixin(object):
         query, params = self.query.as_sql()
         query_string = (query % params).strip()
         base_args = ('cachebot:result_key',str(self.__class__),query_string, extra_args)
-        return md5_constructor('.'.join(base_args)).hexdigest()
+        return version_key(md5_constructor('.'.join(base_args)).hexdigest())
     
     def _get_model_class_from_table(self, table):
         """Helper method that accepts a table name and returns the Django model class it belongs to"""

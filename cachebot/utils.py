@@ -8,7 +8,7 @@ from django.db.models.base import ModelBase
 from django.db.models.query_utils import QueryWrapper
 
 from cachebot.models import CacheBotException
-from cachebot import CACHE_PREFIX
+from cachebot.backends import version_key
 
 def get_invalidation_key(table_alias, accessor_path='', lookup_type='exact', negate=False, value='', save=True):
     """An invalidation key is associated with a set of cached queries. A blank accessor_path
@@ -24,8 +24,8 @@ def get_invalidation_key(table_alias, accessor_path='', lookup_type='exact', neg
         else:
             value = ''
     #print save, table_alias,accessor_path,str(value)
-    base_args = (CACHE_PREFIX, 'cachebot:invalidation',table_alias,accessor_path,str(value))
-    return md5_constructor(u'.'.join(base_args).encode('utf-8')).hexdigest()
+    base_args = ('cachebot:invalidation',table_alias,accessor_path,str(value))
+    return version_key(md5_constructor(u'.'.join(base_args).encode('utf-8')).hexdigest())
 
 def get_values(instance, accessor_path):
     accessor_split = accessor_path.split(LOOKUP_SEP)
