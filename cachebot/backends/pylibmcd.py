@@ -64,4 +64,10 @@ class CacheClass(BaseCache):
 
     def decr(self, key, delta=1):
         return self._call('decr', smart_str(key), delta)
+     
+    def delete_many(self, keys):
+        self._call('delete_multi', map(smart_str, keys))
+
+    def clear(self):
+        self._call('flush_all')
         
