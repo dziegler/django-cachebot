@@ -7,7 +7,7 @@ class CachebotBackendMeta(type):
     def __init__(cls, name, bases, ns):
         for key, value in chain(ns.iteritems(),parent_ns_gen(bases)):
             
-            if key in ('__init__', 'set_many', 'clear'):
+            if key in ('__init__', 'set_many', 'clear', 'close'):
                 continue
 
             if not inspect.ismethod(value): 
