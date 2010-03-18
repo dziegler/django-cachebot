@@ -3,7 +3,7 @@ from django.conf import settings
 from django.utils.encoding import smart_unicode, smart_str
 
 from cachebot.backends import memcached
-from cachebot.backends import version_key
+from cachebot.backends import CachebotBackendMeta, version_key
 
 try:
     import cmemcached as memcache
@@ -14,6 +14,8 @@ except ImportError:
         raise InvalidCacheBackendError("libmemcached backend requires either the 'python-memcached' or 'python-libmemcached' library")
 
 class CacheClass(memcached.CacheClass):
+    __metaclass__ = CachebotBackendMeta
+    
     def __init__(self, server, params):
         super(memcached.CacheClass, self).__init__(server, params)
         self._cache = memcache.Client(server.split(';'))
