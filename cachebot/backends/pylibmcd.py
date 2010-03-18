@@ -49,6 +49,8 @@ class CacheClass(BaseCache):
         self._call('delete', smart_str(key))
 
     def get_many(self, keys):
+        if not keys:
+            return {}
         return self._call('get_multi', map(smart_str, keys))
 
     def set_many(self, mapping, timeout=None):
