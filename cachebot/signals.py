@@ -90,13 +90,14 @@ def load_cache_signals(sender, **kwargs):
             cursor.execute("SELECT * FROM %s" % CacheBotSignals._meta.db_table)
 
         results = cursor.fetchall()
-        mapping = {}
+        tables = [r[1] for r in results]
+        mapping = cache.get_many(tables)
         for r in results:
-            accessor_set = cache_signals.get_global_signals(r[1])
+            accessor_set = mapping.get(r[1])
             if accessor_set is None:
                 accessor_set = set()
             accessor_set.add(r[2:5])
-            mapping[lookup_key] = accessor_set
+            mapping[r[1]] = accessor_set
         cache.set_many(mapping, CACHE_SECONDS)
         cache_signals.ready = True
         
