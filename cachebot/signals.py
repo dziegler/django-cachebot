@@ -28,7 +28,7 @@ class CacheSignals(object):
         self.__dict__ = self.__shared_state
  
     def get_lookup_key(self, model_class):
-        return '.'.join(('cachesignals', model_class._meta.db_table))
+        return version_key('.'.join(('cachesignals', model_class._meta.db_table)))
     
     def get_local_signals(self, model_class):
         return self.local_signals.get(model_class._meta.db_table, set())
@@ -93,7 +93,7 @@ def load_cache_signals(sender, **kwargs):
         tables = [r[1] for r in results]
         mapping = cache.get_many(tables)
         for r in results:
-            key = version_key(r[1])
+            key = version_key('.'.join(('cachesignals', r[1])))
             accessor_set = mapping.get(key)
             if accessor_set is None:
                 accessor_set = set()
