@@ -3,7 +3,7 @@ from django.core.cache.backends.base import InvalidCacheBackendError
 from django.conf import settings
 from django.utils.encoding import smart_unicode, smart_str
 
-from cachebot.backends import CachebotBackendMeta, version_key
+from cachebot.backends import CachebotBackendMeta
 
 try:
     import cmemcache as memcache
@@ -22,7 +22,6 @@ class CacheClass(memcached.CacheClass):
     def set_many(self, data, timeout=0):
         safe_data = {}
         for key, value in data.items():
-            key = version_key(key)
             if isinstance(value, unicode):
                 value = value.encode('utf-8')
             safe_data[smart_str(key)] = value

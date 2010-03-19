@@ -46,6 +46,7 @@ def logged_func(func):
         t = time()
 
         val = func(instance, key, *args, **kwargs)
+
         instance._logger.log[-1].time = 1000 * (time() - t)
         if func.func_name == 'get':
             instance._logger.log[-1].hit = val != None
@@ -94,6 +95,7 @@ try:
         def process_request(self, request):
             from django.core.cache import cache
             cache._logger.reset()
+            
 
 
     template = """

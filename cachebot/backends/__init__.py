@@ -2,7 +2,7 @@ import inspect
 from itertools import chain
 from django.conf import settings
 from cachebot import CACHE_PREFIX, CACHEBOT_LOCAL_CACHE
-from cachebot import localstore
+from cachebot.localstore import deferred_cache
 from cachebot.logger import logged_func
 
 class CachebotBackendMeta(type):
@@ -13,10 +13,12 @@ class CachebotBackendMeta(type):
             if key.startswith('_') or not inspect.isfunction(value): 
                 continue
             
-            if key in ('set_many', 'clear', 'close'):
+            if key in ('clear', 'close'):
                 setattr(cls, key, backend_decorator(value))
             else:
                 setattr(cls, key, version_key_decorator(value))
+            
+            setattr(cls, '_deferred', deferred_cache)
             
             if settings.DEBUG:
                 from cachebot.logger import cache_log
@@ -28,7 +30,7 @@ def backend_decorator(func):
         name = func.func_name
             
         if CACHEBOT_LOCAL_CACHE:
-            return getattr(localstore, name)(func, instance, *args, **kwargs)
+            return getattr(instance._deferred, name)(func, instance, *args, **kwargs)
         else:
             return func(instance, *args, **kwargs)
     return inner
@@ -37,18 +39,21 @@ def backend_decorator(func):
 def version_key_decorator(func):
     def inner(instance, keys, *args, **kwargs):
         if hasattr(keys, '__iter__'):
-            keys = map(version_key, keys)
+            if isinstance(keys, dict):
+                keys = dict([(version_key(k),v) for k,v in keys.iteritems()])
+            else:
+                keys = map(version_key, keys)
         else:
             keys = version_key(keys)
         
         name = func.func_name
         
-        # this sucks, but can't redefine func
+        # this is ugly, but can't redefine func
         if CACHEBOT_LOCAL_CACHE:
             if settings.DEBUG:
-                return getattr(localstore, name)(logged_func(func), instance, keys, *args, **kwargs)
+                return getattr(instance._deferred, name)(logged_func(func), instance, keys, *args, **kwargs)
             else:
-                return getattr(localstore, name)(func, instance, keys, *args, **kwargs)
+                return getattr(instance._deferred, name)(func, instance, keys, *args, **kwargs)
         else:
             if settings.DEBUG:
                 return logged_func(func)(instance, keys, *args, **kwargs)
@@ -72,4 +77,3 @@ def parent_ns_gen(classes):
             if inspect.ismethod(value):
                 yield attr, value
      
-            
