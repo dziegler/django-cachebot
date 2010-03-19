@@ -46,13 +46,12 @@ def logged_func(func):
         t = time()
 
         val = func(instance, key, *args, **kwargs)
-
         instance._logger.log[-1].time = 1000 * (time() - t)
         if func.func_name == 'get':
-            instance._logger.log[-1].hit = val != args[0]
+            instance._logger.log[-1].hit = val != None
         elif func.func_name == 'get_many':
             instance._logger.log[-1].hit = bool(val)
-        
+
         logging.getLogger("cachebot").debug(instance._logger.log[-1])
 
         return val
