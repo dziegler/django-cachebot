@@ -14,8 +14,6 @@ except:
 
 from cachebot.utils import get_invalidation_key
 from cachebot.tests.models import FirstModel, SecondModel, ThirdModel, GenericModel, ManyModel
-from cachebot.signals import cache_signals
-
 
 class BaseTestCase(TestCase):
     

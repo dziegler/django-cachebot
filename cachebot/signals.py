@@ -15,55 +15,60 @@ from cachebot.utils import get_invalidation_key, get_values
 
 class CacheSignals(object):
     """
-    An object that handles installed cache signals.
+    An object that handles installed cache signals. Keep a local copy of the signals
+    so we don't hammer memcache
     """
     
     __shared_state = dict(
-        ready = False
+        ready = False,
+        local_signals = dict()
     )
     
     def __init__(self):
         self.__dict__ = self.__shared_state
  
     def get_lookup_key(self, model_class):
-        return md5_constructor('.'.join(('cachesignals', model_class._meta.db_table))).hexdigest()
+        return '.'.join(('cachesignals', model_class._meta.db_table))
     
-    def get_signals(self, model_class):
+    def get_local_signals(self, model_class):
+        return self.local_signals.get(model_class._meta.db_table, set())
+    
+    def get_global_signals(self, model_class):
         lookup_key = self.get_lookup_key(model_class)
         accessor_set = cache.get(lookup_key)
         if accessor_set is None:
             accessor_set = set()
+        self.local_signals[model_class._meta.db_table] = accessor_set
         return accessor_set
     
     def set_signals(self, model_class, accessor_set):
         lookup_key = self.get_lookup_key(model_class)
+        self.local_signals[model_class._meta.db_table] = accessor_set
         cache.set(lookup_key, accessor_set, CACHE_SECONDS)
-
-    def create_signal(self, model_class, accessor_path, lookup_type, negate):        
-        accessor_set = self.get_signals(model_class)
-        accessor_set.add((accessor_path, lookup_type, negate))
-        self.set_signals(model_class, accessor_set)
         
     def register(self, model_class, accessor_path, lookup_type, negate=False):
-        accessor_set = self.get_signals(model_class)
-        if (accessor_path, lookup_type, negate) not in accessor_set:  
-            # can't use get_or_create here
-            try:               
-                CacheBotSignals.objects.filter(
-                    table_name=model_class._meta.db_table,
-                    accessor_path=accessor_path,
-                    lookup_type=lookup_type,
-                    exclude=negate
-                )[0]
-            except IndexError:
-                CacheBotSignals.objects.create(
-                    table_name=model_class._meta.db_table,
-                    accessor_path=accessor_path,
-                    lookup_type=lookup_type,
-                    exclude=negate
-                )
-            accessor_set.add((accessor_path, lookup_type, negate))
-            self.set_signals(model_class, accessor_set)
+        path_tuple = (accessor_path, lookup_type, negate)
+        if path_tuple not in self.get_local_signals(model_class):
+            # not in local cache, check the global cache
+            accessor_set = self.get_global_signals(model_class)
+            if path_tuple not in accessor_set:
+                # can't use get_or_create here
+                try:               
+                    CacheBotSignals.objects.filter(
+                        table_name=model_class._meta.db_table,
+                        accessor_path=accessor_path,
+                        lookup_type=lookup_type,
+                        exclude=negate
+                    )[0]
+                except IndexError:
+                    CacheBotSignals.objects.create(
+                        table_name=model_class._meta.db_table,
+                        accessor_path=accessor_path,
+                        lookup_type=lookup_type,
+                        exclude=negate
+                    )
+                accessor_set.add(path_tuple)
+                self.set_signals(model_class, accessor_set)
 
 cache_signals = CacheSignals()
 
@@ -85,20 +90,16 @@ def load_cache_signals(sender, **kwargs):
             cursor.execute("SELECT * FROM %s" % CacheBotSignals._meta.db_table)
 
         results = cursor.fetchall()
+        mapping = {}
         for r in results:
-            lookup_key = md5_constructor('.'.join(('cachesignals', r[1]))).hexdigest()
-            accessor_set = cache.get(lookup_key)
+            accessor_set = cache_signals.get_global_signals(r[1])
             if accessor_set is None:
                 accessor_set = set()
             accessor_set.add(r[2:5])
-            cache.set(lookup_key, accessor_set, CACHE_SECONDS)
-            
-    
+            mapping[lookup_key] = accessor_set
+        cache.set_many(mapping, CACHE_SECONDS)
         cache_signals.ready = True
-            
-    accessor_set = cache_signals.get_signals(sender)
-    for path_tuple in accessor_set:
-        cache_signals.create_signal(sender, path_tuple[0], path_tuple[1], path_tuple[2])
+        
 class_prepared.connect(load_cache_signals)
 
 
@@ -106,7 +107,6 @@ class_prepared.connect(load_cache_signals)
 
 def post_update_cachebot(sender, instance, **kwargs):
     ## TODO auto add select reverse and related ##
-    accessor_set = cache_signals.get_signals(sender)
     invalidate_cache(sender, instance)
 
 
@@ -135,7 +135,7 @@ def invalidate_cache(model_class, objects, **extra_keys):
     a web app.
     """
     invalidation_dict = {}
-    accessor_set = cache_signals.get_signals(model_class)
+    accessor_set = cache_signals.get_global_signals(model_class)
     for obj in objects:
         for (accessor_path, lookup_type, negate) in accessor_set:
             for value in get_values(obj, accessor_path):

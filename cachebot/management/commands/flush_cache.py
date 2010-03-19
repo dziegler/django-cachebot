@@ -15,5 +15,6 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         
         CacheBotSignals.objects.all().delete()
+        cache_signals.local_signals = {}
         cache.clear()
         
