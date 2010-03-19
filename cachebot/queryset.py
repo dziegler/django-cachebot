@@ -201,8 +201,8 @@ class CachedQuerySetMixin(object):
         """Cache key used to identify this query"""
         query, params = self.query.as_sql()
         query_string = (query % params).strip()
-        base_args = ('cachebot:result_key',str(self.__class__),query_string, extra_args)
-        return version_key(md5_constructor('.'.join(base_args)).hexdigest())
+        base_key = md5_constructor('.'.join(('cachebot:result_key',str(self.__class__),query_string, extra_args))).hexdigest()
+        return version_key('.'.join((self.model._meta.db_table,base_key)))
     
     def _get_model_class_from_table(self, table):
         """Helper method that accepts a table name and returns the Django model class it belongs to"""

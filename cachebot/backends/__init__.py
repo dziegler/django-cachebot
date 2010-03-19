@@ -3,7 +3,7 @@ from itertools import chain
 from django.conf import settings
 from cachebot import CACHE_PREFIX, CACHEBOT_LOCAL_CACHE
 from cachebot import localstore
-from cachebot.logging import logged_func
+from cachebot.logger import logged_func
 
 class CachebotBackendMeta(type):
     
@@ -19,14 +19,16 @@ class CachebotBackendMeta(type):
                 setattr(cls, key, version_key_decorator(value))
             
             if settings.DEBUG:
-                from cachebot.logging import cache_log
+                from cachebot.logger import cache_log
                 setattr(cls, "_logger", cache_log)
  
 
 def backend_decorator(func):
     def inner(instance, *args, **kwargs):
+        name = func.func_name
+            
         if CACHEBOT_LOCAL_CACHE:
-            return getattr(localstore, func.func_name)(func, instance, *args, **kwargs)
+            return getattr(localstore, name)(func, instance, *args, **kwargs)
         else:
             return func(instance, *args, **kwargs)
     return inner
@@ -38,15 +40,20 @@ def version_key_decorator(func):
             keys = map(version_key, keys)
         else:
             keys = version_key(keys)
-            
+        
+        name = func.func_name
+        
+        # this sucks, but can't redefine func
         if CACHEBOT_LOCAL_CACHE:
             if settings.DEBUG:
-                return getattr(localstore, func.func_name)(logged_func(func), instance, keys, *args, **kwargs)
+                return getattr(localstore, name)(logged_func(func), instance, keys, *args, **kwargs)
             else:
-                return getattr(localstore, func.func_name)(func, instance, keys, *args, **kwargs)
-
+                return getattr(localstore, name)(func, instance, keys, *args, **kwargs)
         else:
-            return func(instance, keys, *args, **kwargs)
+            if settings.DEBUG:
+                return logged_func(func)(instance, keys, *args, **kwargs)
+            else:
+                return func(instance, keys, *args, **kwargs)
     return inner
 
 

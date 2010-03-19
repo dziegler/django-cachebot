@@ -6,7 +6,7 @@
 import re
 import fnmatch
 import threading
-from cachebot.logging import cache_log
+from cachebot.logger import cache_log
 
 class LocalStore(threading.local):
     """A thread-local OpenStruct that can be used as a local cache.  Stole this from johnny-cache :)"""

@@ -24,8 +24,8 @@ def get_invalidation_key(table_alias, accessor_path='', lookup_type='exact', neg
         else:
             value = ''
     #print save, table_alias,accessor_path,str(value)
-    base_args = ('cachebot:invalidation',table_alias,accessor_path,str(value))
-    return version_key(md5_constructor(u'.'.join(base_args).encode('utf-8')).hexdigest())
+    base_key = md5_constructor(u'.'.join(('cachebot:invalidation',accessor_path,unicode(value))).encode('utf-8')).hexdigest()
+    return version_key('.'.join((table_alias,base_key)))
 
 def get_values(instance, accessor_path):
     accessor_split = accessor_path.split(LOOKUP_SEP)
