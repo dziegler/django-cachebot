@@ -11,7 +11,7 @@ from django.core.management.color import no_style
 from cachebot import CACHE_SECONDS, CACHE_PREFIX
 from cachebot.models import CacheBotSignals
 from cachebot.utils import get_invalidation_key, get_values
-
+from cachebot.backends import version_key
 
 class CacheSignals(object):
     """
@@ -93,11 +93,12 @@ def load_cache_signals(sender, **kwargs):
         tables = [r[1] for r in results]
         mapping = cache.get_many(tables)
         for r in results:
-            accessor_set = mapping.get(r[1])
+            key = version_key(r[1])
+            accessor_set = mapping.get(key)
             if accessor_set is None:
                 accessor_set = set()
             accessor_set.add(r[2:5])
-            mapping[r[1]] = accessor_set
+            mapping[key] = accessor_set
         cache.set_many(mapping, CACHE_SECONDS)
         cache_signals.ready = True
         
