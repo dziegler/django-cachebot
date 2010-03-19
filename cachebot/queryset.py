@@ -437,15 +437,8 @@ class CachedQuerySetMixin(object):
             return super(CachedQuerySetMixin, self).get(*args, **kwargs)
     
     def count(self):
-        cache_query = getattr(self, '_cache_query', False)
-        if self._result_cache is not None and not self._iter:
-            return len(self._result_cache)
-        
-        if cache_query:
-            # temporary work around to get count working, this needs to be better
-            return sum(1 for i in CacheBot(self, invalidation_only=True))
-        else:
-            return self.query.get_count()
+        # don't cache counts for now
+        return self.query.get_count()
     
         
 class CachedQuerySet(CachedQuerySetMixin, QuerySet):
