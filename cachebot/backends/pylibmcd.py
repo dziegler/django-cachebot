@@ -1,10 +1,16 @@
 from __future__ import with_statement
 from django.core.cache.backends.base import BaseCache
 from django.utils.encoding import smart_unicode, smart_str
-
+from django.conf import settings
 from cachebot.backends import CachebotBackendMeta, version_key
 
 import pylibmc
+
+PYLIBMC_BEHAVIORS = getattr(settings, 'PYLIBMC_BEHAVIORS', {
+                        "cache_lookups": True, 
+                        "no_block": False,
+                        "tcp_nodelay": True
+                        })
 
 class CacheClass(BaseCache):
     """
@@ -16,7 +22,7 @@ class CacheClass(BaseCache):
     def __init__(self, server, params):
         super(CacheClass, self).__init__(params)
         mc = pylibmc.Client(server.split(';'))
-        mc.behaviors = {"tcp_nodelay": True}
+        mc.behaviors = PYLIBMC_BEHAVIORS
         self._pool = pylibmc.ThreadMappedPool(mc)
 
     def _call(self, method, *params):
