@@ -89,7 +89,7 @@ class CacheBot(object):
         A CacheBotSignal stores a model and it's accessor path to self.queryset.model.
         """
         # cache the results     
-        if not self.invalidation_only:
+        if results and not self.invalidation_only:
             cache.set(self.result_key, results, CACHE_SECONDS)
         
         invalidation_dict = {}

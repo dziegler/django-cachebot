@@ -31,7 +31,10 @@ class CacheSignals(object):
         return version_key('.'.join(('cachesignals', model_class._meta.db_table)))
     
     def get_local_signals(self, model_class):
-        return self.local_signals.get(model_class._meta.db_table, set())
+        accessor_set = self.local_signals.get(model_class._meta.db_table, set())
+        if accessor_set is None:
+            accessor_set = set()
+        return accessor_set
     
     def get_global_signals(self, model_class):
         lookup_key = self.get_lookup_key(model_class)
