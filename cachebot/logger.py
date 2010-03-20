@@ -1,5 +1,7 @@
 import logging
 import os
+import threading
+
 from time import time
 
 from django.template import Template, Context
@@ -20,7 +22,7 @@ cachebot_log.addFilter(logging.Filter('cachebot'))
 cachebot_log.setLevel(logging.DEBUG)
 cachebot_log.addHandler(log_handler)
 
-class CacheLogger(object):
+class CacheLogger(threading.local):
 
     def __init__(self):
         self.reset()
