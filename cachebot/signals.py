@@ -156,8 +156,8 @@ def invalidate_cache(model_class, objects, **extra_keys):
     cache_keys = set()
     for obj_key, cache_key_list in invalidation_dict.iteritems():
         if cache_key_list:
-            cache_keys.update(cache_key_list)
-            
+            cache_keys.update(cache_key_list.split(','))
+
     keys_to_invalidate = dict([(key, None) for key in chain(cache_keys, invalidation_dict.keys())])
     keys_to_invalidate.update(extra_keys)
     cache.set_many(keys_to_invalidate, 5)

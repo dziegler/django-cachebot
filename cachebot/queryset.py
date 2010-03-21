@@ -128,11 +128,9 @@ class CacheBot(object):
                             invalidation_dict[invalidation_key] = None
     
             for flush_key, flush_list in invalidation_dict.iteritems():
-                if flush_list is None:
-                    invalidation_dict[flush_key] = set([self.result_key])
-                else:
-                    invalidation_dict[flush_key].add(self.result_key)
-            cache.set_many(invalidation_dict, CACHE_SECONDS)
+                # need to add and append to prevent race conditions
+                cache.add(flush_key, self.result_key, CACHE_SECONDS)
+                cache.append(flush_key, ',%s' % self.result_key)
     
     def _get_join_paths(self, table_alias, accessor_path):
         try:
