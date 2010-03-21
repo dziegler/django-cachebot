@@ -37,7 +37,7 @@ class DeferredCache(object):
     # deferred cache methods
     def add(self, func, instance, key, value, timeout=None):
         cache_val = local.storage.get(key)
-        if cache_val is None:
+        if cache_val is None and key not in local.delete_many:
             local.storage[key] = value
             return func(instance, key, value, timeout=None)
         else:
