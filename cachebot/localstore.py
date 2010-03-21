@@ -24,7 +24,7 @@ class DeferredCache(object):
     
     def __init__(self):
         local.reset()
-    
+        
     def commit(self, instance):
         if local.delete_many:
             instance.delete_many(local.delete_many, commit=True)
@@ -35,15 +35,13 @@ class DeferredCache(object):
     
     
     # deferred cache methods
-    
     def add(self, func, instance, key, value, timeout=None):
-        from_cache = local.storage.get(key)
-        if from_cache is None:
-            hit_cache = func(instance, key, value, timeout)
+        cache_val = local.storage.get(key)
+        if cache_val is None:
             local.storage[key] = value
+            return func(instance, key, value, timeout=None)
         else:
-            hit_cache = False
-        return hit_cache
+            return False
 
     def get(self, func, instance, key, default=None):
         value = local.storage.get(key)
@@ -94,12 +92,6 @@ class DeferredCache(object):
     def close(self, func, instance, **kwargs):
         self.commit(instance)
         func(instance, **kwargs)
-
-    def incr(self, func, instance, key, delta=1):
-        return func(instance, key, delta)
-
-    def decr(self, func, instance, key, delta=1):
-        return func(instance, key, delta)
  
     def delete_many(self, func, instance, keys, commit=False):
         if commit:
@@ -113,6 +105,20 @@ class DeferredCache(object):
     def clear(self, func, instance):
         local.reset()
         func(instance)
+    
+    # pass through methods
+    
+    def incr(self, func, instance, *args, **kwargs):
+        return func(instance, *args, **kwargs)
+
+    def decr(self, func, instance, *args, **kwargs):
+        return func(instance, *args, **kwargs)
+    
+    def append(self, func, instance, *args, **kwargs):
+        return func(instance, *args, **kwargs)
+    
+    def prepend(self, func, instance, *args, **kwargs):
+        return func(instance, *args, **kwargs)
 
 local = LocalStore()
 deferred_cache = DeferredCache()

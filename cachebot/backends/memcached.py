@@ -32,3 +32,9 @@ class CacheClass(memcached.CacheClass):
 
     def clear(self):
         self._cache.flush_all()
+    
+    def prepend(self, key, value):
+        self._cache.prepend(smart_str(key), value)
+    
+    def append(self, key, value):
+        self._cache.append(smart_str(key), value)

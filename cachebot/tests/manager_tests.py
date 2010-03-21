@@ -1,6 +1,7 @@
 from django.db import connection
 from django.conf import settings
 from django.core.cache import cache
+from test_utils.testcase import TestCase, test_concurrently
 
 from cachebot.tests.base_tests import BaseTestCase, BasicCacheTests, FieldCacheTests, RelatedCacheTests, ExtraRelatedCacheTests
 from cachebot.tests.models import FirstModel

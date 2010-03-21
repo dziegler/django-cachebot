@@ -22,15 +22,12 @@ RUNNING_TESTS = getattr(settings, 'RUNNING_TESTS', False)
 
 class CacheBot(object):
     
-    def __init__(self, queryset, extra_args='', invalidation_only=False):
+    def __init__(self, queryset, extra_args=''):
         # have to call clone for some reason
         self.queryset = queryset._clone()
         self.iterator = super(self.queryset.__class__, self.queryset).iterator
         self.result_key = queryset.get_cache_key(extra_args)
-        
-        # set this to True when we don't want to cache the entire queryset, but we do want to be able to invalidate this result_key
-        # (when performing count for example)
-        self.invalidation_only = invalidation_only
+
         
     def __iter__(self):
         results = cache.get(self.result_key)
@@ -88,48 +85,54 @@ class CacheBot(object):
         Create invalidation signals for these results in the form of CacheBotSignals.
         A CacheBotSignal stores a model and it's accessor path to self.queryset.model.
         """
-        # cache the results     
-        if results and not self.invalidation_only:
-            cache.set(self.result_key, results, CACHE_SECONDS)
+        # cache the results   
         
         invalidation_dict = {}
         
-        for child, negate in self.queryset._get_where_clause(self.queryset.query.where):     
-            (table_alias, field_name, db_type), lookup_type, value_annotation, params = child
-            for model_class, accessor_path in self._get_join_paths(table_alias, field_name):
-                if model_class is None:
-                    continue
-                if self._is_valid_flush_path(accessor_path):  
-                    cache_signals.register(model_class, accessor_path, lookup_type, negate=negate)
-                    invalidation_key = get_invalidation_key(
-                        model_class._meta.db_table, 
-                        accessor_path = accessor_path, 
-                        lookup_type = lookup_type, 
-                        negate = negate, 
-                        value = params, save=True)
-                    invalidation_dict[invalidation_key] = None
-                
-                join_to_tables = ifilter(lambda x: x[0] == model_class._meta.db_table, self.queryset.query.join_map.keys())
-                for join_tuple in join_to_tables:
-                    if self._is_valid_flush_path(accessor_path): 
-                        model_class = self.queryset._get_model_class_from_table(join_tuple[1])
-                        cache_signals.register(model_class, join_tuple[3], lookup_type, negate=negate)
+        if results:
+            added_to_cache = cache.add(self.result_key, results, CACHE_SECONDS)
+        else:
+            added_to_cache = cache.add(self.result_key, None, CACHE_SECONDS)
+        
+        if added_to_cache:
+            
+            invalidation_dict.update(dict([(key,None) for key in self.get_invalidation_keys(results)]))
+            invalidation_dict.update(cache.get_many(invalidation_dict.keys()))
+    
+            for child, negate in self.queryset._get_where_clause(self.queryset.query.where):     
+                (table_alias, field_name, db_type), lookup_type, value_annotation, params = child
+                for model_class, accessor_path in self._get_join_paths(table_alias, field_name):
+                    if model_class is None:
+                        continue
+                    if self._is_valid_flush_path(accessor_path):  
+                        cache_signals.register(model_class, accessor_path, lookup_type, negate=negate)
                         invalidation_key = get_invalidation_key(
                             model_class._meta.db_table, 
-                            accessor_path = join_tuple[3], 
+                            accessor_path = accessor_path, 
                             lookup_type = lookup_type, 
                             negate = negate, 
                             value = params, save=True)
                         invalidation_dict[invalidation_key] = None
-        invalidation_dict.update(dict([(key,None) for key in self.get_invalidation_keys(results)]))
-        invalidation_dict.update(cache.get_many(invalidation_dict.keys()))
-
-        for flush_key, flush_list in invalidation_dict.iteritems():
-            if flush_list is None:
-                invalidation_dict[flush_key] = set([self.result_key])
-            else:
-                invalidation_dict[flush_key].add(self.result_key)
-        cache.set_many(invalidation_dict, CACHE_SECONDS)
+            
+                    join_to_tables = ifilter(lambda x: x[0] == model_class._meta.db_table, self.queryset.query.join_map.keys())
+                    for join_tuple in join_to_tables:
+                        if self._is_valid_flush_path(accessor_path): 
+                            model_class = self.queryset._get_model_class_from_table(join_tuple[1])
+                            cache_signals.register(model_class, join_tuple[3], lookup_type, negate=negate)
+                            invalidation_key = get_invalidation_key(
+                                model_class._meta.db_table, 
+                                accessor_path = join_tuple[3], 
+                                lookup_type = lookup_type, 
+                                negate = negate, 
+                                value = params, save=True)
+                            invalidation_dict[invalidation_key] = None
+    
+            for flush_key, flush_list in invalidation_dict.iteritems():
+                if flush_list is None:
+                    invalidation_dict[flush_key] = set([self.result_key])
+                else:
+                    invalidation_dict[flush_key].add(self.result_key)
+            cache.set_many(invalidation_dict, CACHE_SECONDS)
     
     def _get_join_paths(self, table_alias, accessor_path):
         try:

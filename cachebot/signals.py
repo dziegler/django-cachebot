@@ -161,6 +161,7 @@ def invalidate_cache(model_class, objects, **extra_keys):
     keys_to_invalidate = dict([(key, None) for key in chain(cache_keys, invalidation_dict.keys())])
     keys_to_invalidate.update(extra_keys)
     cache.set_many(keys_to_invalidate, 5)
+    cache.delete_many(keys_to_invalidate.keys())
 
 
 def invalidate_template_cache(fragment_name, *variables):

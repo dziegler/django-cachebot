@@ -66,6 +66,12 @@ class CacheClass(BaseCache):
     
     def close(self, **kwargs):
         self._pool.master.disconnect_all()
+    
+    def prepend(self, key, value):
+        self._call("prepend", smart_str(key), value)
+    
+    def append(self, key, value):
+        self._call("append", smart_str(key), value)
 
     def incr(self, key, delta=1):
         return self._call('incr', smart_str(key), delta)

@@ -23,4 +23,11 @@ class CacheClass(db.CacheClass):
     def clear(self):
         cursor = connection.cursor()
         cursor.execute('DELETE FROM %s' % self._table)
-
+    
+    # not atomic...should not use this in production
+    
+    def prepend(self, key, value):
+        self.set(key, value + self.get(key))
+    
+    def append(self, key, value):
+        self.set(key, self.get(key) + value)

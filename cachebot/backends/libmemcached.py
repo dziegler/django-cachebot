@@ -27,3 +27,4 @@ class CacheClass(memcached.CacheClass):
             if isinstance(value, unicode):
                 value = value.encode('utf-8')
             self.set(smart_str(key), value, timeout or self.default_timeout)
+    

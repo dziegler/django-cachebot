@@ -3,6 +3,9 @@ from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes import generic
 
+class UniqueModel(models.Model):
+    text = models.CharField(max_length=50, unique=True)
+
 class FirstModel(models.Model):
     text = models.CharField(max_length=50)
 

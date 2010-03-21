@@ -14,3 +14,9 @@ class CacheClass(dummy.CacheClass):
 
     def clear(self): 
         pass
+    
+    def append(self, *args, **kwargs):
+        pass
+    
+    def prepend(self, *args, **kwargs):
+        pass
