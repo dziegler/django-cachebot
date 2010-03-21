@@ -26,32 +26,26 @@ class DeferredCache(object):
         local.reset()
         
     def commit(self, instance):
+        if local.delete_many:
+            instance.delete_many(local.delete_many, commit=True)
         for timeout, mapping in local.set_many.iteritems():
             if mapping:
                 instance.set_many(mapping, timeout, commit=True)
-        if local.delete_many:
-            instance.delete_many(local.delete_many, commit=True)
         local.reset()
     
     
     # deferred cache methods
     def add(self, func, instance, key, value, timeout=None):
         cache_val = local.storage.get(key)
-        if cache_val is None:
-            if key not in local.delete_many:
-                local.storage[key] = value
-            add_to_cache = func(instance, key, value, timeout=None)
+        if cache_val is None and key not in local.delete_many:
+            local.storage[key] = value
+            return func(instance, key, value, timeout=None)
         else:
-            if key not in local.delete_many:
-                local.storage[key] = cache_val
-            add_to_cache = False
-        return add_to_cache
+            return False
 
     def get(self, func, instance, key, default=None):
-        if key in local.delete_many:
-            return None
         value = local.storage.get(key)
-        if value is None:
+        if value is None and key not in local.delete_many:
             value = func(instance, key, default)
             local.storage[key] = value
         return value
@@ -70,8 +64,6 @@ class DeferredCache(object):
         else:
             if key in local.storage:
                 del local.storage[key]
-            if key in local.set_many:
-                del local.set_many[key]
             local.delete_many.add(key)
     
     def get_many(self, func, instance, keys):
@@ -79,10 +71,7 @@ class DeferredCache(object):
         new_keys = []
         for key in keys:
             value = local.storage.get(key)
-            if key in local.delete_many:
-                value_dict[key] = None
-            else:
-                value_dict[key] = value
+            value_dict[key] = value
             if value is None and key not in local.delete_many:
                 new_keys.append(key)
     
@@ -99,7 +88,6 @@ class DeferredCache(object):
             local.storage.update(mapping)
             local.set_many.setdefault(timeout, {})
             local.set_many[timeout].update(mapping)
-            local.delete_many = local.delete_many.difference(local.set_many.keys())
 
     def close(self, func, instance, **kwargs):
         self.commit(instance)
@@ -112,8 +100,6 @@ class DeferredCache(object):
             for key in keys:
                 if key in local.storage:
                     del local.storage[key]
-                if key in local.set_many:
-                    del local.set_many[key]
             local.delete_many.update(keys)
 
     def clear(self, func, instance):
