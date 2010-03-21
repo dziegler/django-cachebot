@@ -130,7 +130,8 @@ class CacheBot(object):
             for flush_key, flush_list in invalidation_dict.iteritems():
                 # need to add and append to prevent race conditions
                 cache.add(flush_key, self.result_key, CACHE_SECONDS)
-                cache.append(flush_key, ',%s' % self.result_key)
+                if flush_key not in flush_list.split(','):
+                    cache.append(flush_key, ',%s' % self.result_key)
     
     def _get_join_paths(self, table_alias, accessor_path):
         try:
