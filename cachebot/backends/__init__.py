@@ -1,7 +1,7 @@
 import inspect
 from itertools import chain
 from django.conf import settings
-from cachebot import CACHE_PREFIX, CACHEBOT_LOCAL_CACHE
+from cachebot import CACHEBOT_LOCAL_CACHE
 from cachebot.localstore import deferred_cache
 from cachebot.logger import logged_func
 
@@ -63,10 +63,10 @@ def version_key_decorator(func):
 
 
 def version_key(k):
-    if k and k.startswith(CACHE_PREFIX):
+    if k and k.startswith(settings.CACHE_PREFIX):
         return k
     else:
-        return "%s.%s" % (CACHE_PREFIX,k)
+        return "%s.%s" % (settings.CACHE_PREFIX,k)
         
         
 def parent_ns_gen(classes):

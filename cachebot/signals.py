@@ -8,7 +8,7 @@ from django.utils.hashcompat import md5_constructor
 from django.db.models.signals import class_prepared
 from django.core.management.color import no_style
 
-from cachebot import CACHE_SECONDS, CACHE_PREFIX
+from cachebot import CACHE_SECONDS
 from cachebot.models import CacheBotSignals
 from cachebot.utils import get_invalidation_key, get_values
 from cachebot.backends import version_key

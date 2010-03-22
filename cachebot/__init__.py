@@ -14,6 +14,12 @@ try:
     CACHEBOT_TABLE_BLACKLIST = getattr(settings,'CACHEBOT_TABLE_BLACKLIST',('django_session',))
     CACHEBOT_LOCAL_CACHE = getattr(settings,'CACHEBOT_LOCAL_CACHE',True)
     CACHEBOT_LOG = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'cachebot.log')
+    if getattr(settings,'RUNNING_TESTS',False):
+        CACHE_PREFIX = 'test_%s' % CACHE_PREFIX
+        CACHE_SECONDS = 30
+    settings.CACHE_PREFIX = CACHE_PREFIX
+    settings.CACHE_SECONDS = CACHE_SECONDS
+    
     post_update = django.dispatch.Signal(providing_args=["sender", "instance"])
 
 except ImportError:

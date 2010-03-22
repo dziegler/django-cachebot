@@ -1,3 +1,5 @@
+from time import time
+
 from django.contrib.auth.models import User, UserManager
 from django.conf import settings
 from django.core.cache import cache
@@ -13,7 +15,10 @@ except:
     from django.test import TestCase
 
 from cachebot.utils import get_invalidation_key
+from cachebot.models import CacheBotSignals
+from cachebot.signals import cache_signals
 from cachebot.tests.models import FirstModel, SecondModel, ThirdModel, GenericModel, ManyModel
+from cachebot import CACHE_PREFIX
 
 class BaseTestCase(TestCase):
     
@@ -24,8 +29,11 @@ class BaseTestCase(TestCase):
                 management.call_command('createcachetable', cache._table)
             except:
                 pass
-
-        management.call_command('flush_cache')
+        
+        CacheBotSignals.objects.all().delete()
+        cache_signals.local_signals = {}
+        settings.CACHE_PREFIX = CACHE_PREFIX + str(time())
+        settings.CACHE_SECONDS = 30
         
 
 class BasicCacheTests(BaseTestCase):
