@@ -19,6 +19,7 @@ try:
         CACHE_SECONDS = 30
     settings.CACHE_PREFIX = CACHE_PREFIX
     settings.CACHE_SECONDS = CACHE_SECONDS
+    settings.CACHEBOT_LOCAL_CACHE = CACHEBOT_LOCAL_CACHE
     
     post_update = django.dispatch.Signal(providing_args=["sender", "instance"])
 

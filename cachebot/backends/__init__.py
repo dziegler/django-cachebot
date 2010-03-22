@@ -1,7 +1,7 @@
 import inspect
 from itertools import chain
 from django.conf import settings
-from cachebot import CACHEBOT_LOCAL_CACHE
+
 from cachebot.localstore import deferred_cache
 from cachebot.logger import logged_func
 
@@ -29,7 +29,7 @@ def backend_decorator(func):
     def inner(instance, *args, **kwargs):
         name = func.func_name
             
-        if CACHEBOT_LOCAL_CACHE:
+        if settings.CACHEBOT_LOCAL_CACHE:
             return getattr(instance._deferred, name)(func, instance, *args, **kwargs)
         else:
             return func(instance, *args, **kwargs)
@@ -49,7 +49,7 @@ def version_key_decorator(func):
         name = func.func_name
         
         # this is ugly, but can't redefine func
-        if CACHEBOT_LOCAL_CACHE:
+        if settings.CACHEBOT_LOCAL_CACHE:
             if settings.DEBUG:
                 return getattr(instance._deferred, name)(logged_func(func), instance, keys, *args, **kwargs)
             else:

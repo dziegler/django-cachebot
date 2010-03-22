@@ -127,7 +127,6 @@ class CountCacheTests(BasicCacheTests):
         BasicCacheTests.setUp(self)
         # call count to create any CacheBotSignals first
         self.func(**self.kwargs).count()
-        cache.clear()
     
     def test_lookup(self, count=1):
         connection.queries = []
@@ -158,7 +157,6 @@ class ExtraRelatedCountCacheTests(ExtraRelatedCacheTests):
         ExtraRelatedCacheTests.setUp(self)
         # call count to create any CacheBotSignals first
         self.func(**self.kwargs).count()
-        cache.clear()
         
     def test_related_save_signal(self):
         self.test_save_signal(obj=self.obj.obj)
