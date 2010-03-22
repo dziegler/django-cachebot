@@ -1,7 +1,7 @@
 "Database cache backend."
 
 from django.core.cache.backends import db
-from django.db import connection
+from django.db import connection, transaction
 
 from cachebot.backends import CachebotBackendMeta, version_key
 
@@ -26,8 +26,10 @@ class CacheClass(db.CacheClass):
     
     # not atomic...should not use this in production
     
+    @transaction.commit_on_success
     def prepend(self, key, value):
         self.set(key, value + self.get(key))
     
+    @transaction.commit_on_success
     def append(self, key, value):
         self.set(key, self.get(key) + value)
