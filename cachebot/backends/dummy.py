@@ -20,3 +20,6 @@ class CacheClass(dummy.CacheClass):
     
     def prepend(self, *args, **kwargs):
         pass
+    
+    def close(self, **kwargs):
+        pass

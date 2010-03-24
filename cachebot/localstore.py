@@ -1,12 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""Threadlocal OpenStruct-like cache."""
+# not used yet
 
 import re
 import fnmatch
 import threading
-from cachebot.logger import cache_log
 
 
 class LocalStore(threading.local):
@@ -119,6 +118,3 @@ class DeferredCache(object):
     
     def prepend(self, func, instance, *args, **kwargs):
         return func(instance, *args, **kwargs)
-
-local = LocalStore()
-deferred_cache = DeferredCache()

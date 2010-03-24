@@ -1,7 +1,6 @@
 from django.core.cache import cache
 from django.conf import settings
 from cachebot.tests.base_tests import BaseTestCase
-from cachebot.localstore import local
 from cachebot.backends import version_key
 from cachebot.tests.utils import ConcurrentTestMetaClass
 

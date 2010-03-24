@@ -1,39 +1,6 @@
-import inspect
-from itertools import chain
 from django.conf import settings
 
-from cachebot.localstore import deferred_cache
 from cachebot.logger import logged_func
-
-class CachebotBackendMeta(type):
-    
-    def __init__(cls, name, bases, ns):
-        for key, value in chain(ns.iteritems(),parent_ns_gen(bases)):
-
-            if key.startswith('_') or not inspect.isfunction(value): 
-                continue
-            
-            if key in ('clear', 'close'):
-                setattr(cls, key, backend_decorator(value))
-            else:
-                setattr(cls, key, version_key_decorator(value))
-            
-            setattr(cls, '_deferred', deferred_cache)
-            
-            if settings.DEBUG:
-                from cachebot.logger import cache_log
-                setattr(cls, "_logger", cache_log)
- 
-
-def backend_decorator(func):
-    def inner(instance, *args, **kwargs):
-        name = func.func_name
-            
-        if settings.CACHEBOT_LOCAL_CACHE:
-            return getattr(instance._deferred, name)(func, instance, *args, **kwargs)
-        else:
-            return func(instance, *args, **kwargs)
-    return inner
 
 
 def version_key_decorator(func):
@@ -45,20 +12,11 @@ def version_key_decorator(func):
                 keys = map(version_key, keys)
         else:
             keys = version_key(keys)
-        
-        name = func.func_name
-        
-        # this is ugly, but can't redefine func
-        if settings.CACHEBOT_LOCAL_CACHE:
-            if settings.DEBUG:
-                return getattr(instance._deferred, name)(logged_func(func), instance, keys, *args, **kwargs)
-            else:
-                return getattr(instance._deferred, name)(func, instance, keys, *args, **kwargs)
+                
+        if settings.DEBUG:
+            return logged_func(func)(instance, keys, *args, **kwargs)
         else:
-            if settings.DEBUG:
-                return logged_func(func)(instance, keys, *args, **kwargs)
-            else:
-                return func(instance, keys, *args, **kwargs)
+            return func(instance, keys, *args, **kwargs)
     return inner
 
 

@@ -30,8 +30,6 @@ class CacheLogger(threading.local):
     def reset(self):
         self.log = []
 
-cache_log = CacheLogger()
-
 
 class CacheLogInstance(object):
 
@@ -55,7 +53,7 @@ def logged_func(func):
         elif func.func_name == 'get_many':
             instance._logger.log[-1].hit = bool(val)
 
-        logging.getLogger("cachebot").debug(instance._logger.log[-1])
+        cachebot_log.debug(instance._logger.log[-1])
 
         return val
     return inner
@@ -76,9 +74,10 @@ try:
             return _('Cache Queries')
 
         def nav_subtitle(self):
+            from django.core.cache import cache
             # Aggregate stats.
             stats = {'hit': 0, 'miss': 0, 'time': 0}
-            for log in cache_log.log:
+            for log in cache._logger.log:
                 if hasattr(log, 'hit'):
                     stats[log.hit and 'hit' or 'miss'] += 1
                 stats['time'] += log.time
@@ -88,7 +87,8 @@ try:
             return _('%(hit)s hits, %(miss)s misses in %(time)sms') % stats
 
         def content(self):
-            context = {'logs': cache_log.log}
+            from django.core.cache import cache
+            context = {'logs': cache._logger.log}
             return Template(template).render(Context(context))
 
         def url(self):

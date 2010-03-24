@@ -150,18 +150,19 @@ def invalidate_cache(model_class, objects, **extra_keys):
                     negate = negate,
                     value = value, save=False)
                 invalidation_dict[invalidation_key] = None
-            
-    invalidation_dict.update(cache.get_many(invalidation_dict.keys()))
+    
+    if invalidation_dict:
+        invalidation_dict.update(cache.get_many(invalidation_dict.keys()))
 
-    cache_keys = set()
-    for obj_key, cache_key_list in invalidation_dict.iteritems():
-        if cache_key_list:
-            cache_keys.update(cache_key_list.split(','))
+        cache_keys = set()
+        for obj_key, cache_key_list in invalidation_dict.iteritems():
+            if cache_key_list:
+                cache_keys.update(cache_key_list.split(','))
 
-    keys_to_invalidate = dict([(key, None) for key in chain(cache_keys, invalidation_dict.keys())])
-    keys_to_invalidate.update(extra_keys)
-    cache.set_many(keys_to_invalidate, 5)
-    cache.delete_many(keys_to_invalidate.keys())
+        keys_to_invalidate = dict([(key, None) for key in chain(cache_keys, invalidation_dict.keys())])
+        keys_to_invalidate.update(extra_keys)
+        cache.set_many(keys_to_invalidate, 5)
+        cache.delete_many(keys_to_invalidate.keys())
 
 
 def invalidate_template_cache(fragment_name, *variables):
