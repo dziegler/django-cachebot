@@ -14,7 +14,7 @@ from django.utils.hashcompat import md5_constructor
 
 from cachebot.signals import cache_signals
 from cachebot.utils import get_invalidation_key, get_values
-from cachebot import CACHE_SECONDS, CACHEBOT_TABLE_BLACKLIST, post_update
+from cachebot import post_update
 from cachebot.models import CacheBotException
 from cachebot.backends import version_key
 
@@ -30,16 +30,18 @@ class CacheBot(object):
 
         
     def __iter__(self):
-        results = cache.get(self.result_key)
-        if results is not None:
-            for obj in results:
-                if RUNNING_TESTS:
-                    obj = self._set_field(obj,'from_cache', True)
-                yield obj
-            raise StopIteration
+        cache_query = getattr(self.queryset, '_cache_query', False)
+        
+        if cache_query:
+            results = cache.get(self.result_key)
+            if results is not None:
+                for obj in results:
+                    if RUNNING_TESTS:
+                        obj = self._set_field(obj,'from_cache', True)
+                    yield obj
+                raise StopIteration
         
         results = []
-        cache_query = getattr(self.queryset, '_cache_query', False)
         pk_name = self.queryset.model._meta.pk.name   
         self.queryset._fill_select_reverse_cache()
         
@@ -90,9 +92,9 @@ class CacheBot(object):
         invalidation_dict = {}
         
         if results:
-            added_to_cache = cache.add(self.result_key, results, CACHE_SECONDS)
+            added_to_cache = cache.add(self.result_key, results, settings.CACHE_SECONDS)
         else:
-            added_to_cache = cache.add(self.result_key, None, CACHE_SECONDS)
+            added_to_cache = cache.add(self.result_key, None, settings.CACHE_SECONDS)
         
         if added_to_cache:
             
@@ -129,7 +131,7 @@ class CacheBot(object):
     
             for flush_key, flush_list in invalidation_dict.iteritems():
                 # need to add and append to prevent race conditions
-                cache.add(flush_key, self.result_key, CACHE_SECONDS)
+                cache.add(flush_key, self.result_key, settings.CACHE_SECONDS)
                 if flush_list is None or flush_key not in flush_list.split(','):
                     cache.append(flush_key, ',%s' % self.result_key)
     
@@ -428,7 +430,7 @@ class CachedQuerySetMixin(object):
         be added to select_reverse, because we need them for invalidation. Do not cache queries on
         tables in CACHEBOT_TABLE_BLACKLIST
         """
-        _cache_query = self.model._meta.db_table not in CACHEBOT_TABLE_BLACKLIST
+        _cache_query = self.model._meta.db_table not in settings.CACHEBOT_TABLE_BLACKLIST
             
         return self._clone(setup=True, _cache_query=_cache_query, _flush_fields=flush_fields)
     

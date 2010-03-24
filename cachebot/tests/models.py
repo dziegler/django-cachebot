@@ -6,6 +6,10 @@ from django.contrib.contenttypes import generic
 class UniqueModel(models.Model):
     text = models.CharField(max_length=50, unique=True)
 
+class NoCacheModel(models.Model):
+    text = models.CharField(max_length=50)
+    objects = models.Manager(cache_get=False)
+
 class FirstModel(models.Model):
     text = models.CharField(max_length=50)
 
