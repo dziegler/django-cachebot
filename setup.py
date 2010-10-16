@@ -19,9 +19,8 @@ setup(
     license = 'BSD',
     zip_safe = False,
     packages = find_packages(),
-    package_data = {'cachebot':['patches/1-1-1-final-0/*.py']},
     install_requires = [
-        'django==1.1.1',
+        'django>=1.2',
     ],
     classifiers = [
         'Environment :: Web Environment',
