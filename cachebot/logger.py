@@ -1,5 +1,3 @@
-import logging
-import os
 import threading
 
 from time import time
@@ -7,57 +5,49 @@ from time import time
 from django.template import Template, Context
 from django.utils.translation import ugettext as _
 
-try:
-    from cloghandler import ConcurrentRotatingFileHandler as RFHandler
-except ImportError:
-    from warnings import warn
-    warn("ConcurrentLogHandler package not installed.  Using builtin log handler")
-    from logging.handlers import RotatingFileHandler as RFHandler
+from cachebot import conf
+from generic_utils.logger import create_logger
 
-from cachebot import CACHEBOT_LOG
-
-log_handler = RFHandler(CACHEBOT_LOG, "a", 512*1024, 10)
-cachebot_log = logging.getLogger('cachebot')
-cachebot_log.addFilter(logging.Filter('cachebot'))
-cachebot_log.setLevel(logging.DEBUG)
-cachebot_log.addHandler(log_handler)
+cachebot_log = create_logger('cachebot')
 
 class CacheLogger(threading.local):
 
     def __init__(self):
         self.reset()
 
-    def reset(self):
+    def reset(self, **kwargs):
         self.log = []
 
 
 class CacheLogInstance(object):
 
-    def __init__(self, name, key):
+    def __init__(self, name, key, end, hit=None):
         self.name = name
         self.key = key
+        self.time = end
+        self.hit = hit
     
     def __repr__(self):
         return ' - '.join((self.name, str(self.key)))
 
 def logged_func(func):
     def inner(instance, key, *args, **kwargs):
-        instance._logger.log.append(CacheLogInstance(func.func_name, key))
         t = time()
-
         val = func(instance, key, *args, **kwargs)
-
-        instance._logger.log[-1].time = 1000 * (time() - t)
-        if func.func_name == 'get':
-            instance._logger.log[-1].hit = val != None
-        elif func.func_name == 'get_many':
-            instance._logger.log[-1].hit = bool(val)
-
-        cachebot_log.debug(instance._logger.log[-1])
+        
+        if conf.CACHEBOT_ENABLE_LOG:
+            end = 1000 * (time() - t)
+            hit = None
+            if func.func_name == 'get':
+                hit = val != None
+            elif func.func_name == 'get_many':
+                hit = bool(val)
+            log = CacheLogInstance(func.func_name, key, end, hit=hit)
+            instance._logger.log.append(log)
+            cachebot_log.debug(str(log))
 
         return val
     return inner
-
 
 try:
     from debug_toolbar.panels import DebugPanel

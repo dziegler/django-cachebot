@@ -1,18 +1,19 @@
 from itertools import chain
-from time import time
 
 from django.core.cache import cache
-from django.conf import settings
 from django.utils.http import urlquote
 from django.utils.hashcompat import md5_constructor
-from django.db.models.signals import class_prepared
+from django.db.models.signals import class_prepared, post_save, pre_delete
 from django.core.management.color import no_style
-
-from cachebot import CACHE_SECONDS
-from cachebot.models import CacheBotSignals
+from django.core.signals import request_finished
+from cachebot import conf
+from cachebot.models import CacheBotSignals, post_update
 from cachebot.utils import get_invalidation_key, get_values
 from cachebot.backends import version_key
 
+if conf.CACHEBOT_ENABLE_LOG:
+    request_finished.connect(cache._logger.reset)
+    
 class CacheSignals(object):
     """
     An object that handles installed cache signals. Keep a local copy of the signals
@@ -31,15 +32,15 @@ class CacheSignals(object):
         return version_key('.'.join(('cachesignals', model_class._meta.db_table)))
     
     def get_local_signals(self, model_class):
-        accessor_set = self.local_signals.get(model_class._meta.db_table, set())
-        if accessor_set is None:
+        accessor_set = self.local_signals.get(model_class._meta.db_table)
+        if not accessor_set:
             accessor_set = set()
         return accessor_set
     
     def get_global_signals(self, model_class):
         lookup_key = self.get_lookup_key(model_class)
         accessor_set = cache.get(lookup_key)
-        if accessor_set is None:
+        if not accessor_set:
             accessor_set = set()
         self.local_signals[model_class._meta.db_table] = accessor_set
         return accessor_set
@@ -47,7 +48,7 @@ class CacheSignals(object):
     def set_signals(self, model_class, accessor_set):
         lookup_key = self.get_lookup_key(model_class)
         self.local_signals[model_class._meta.db_table] = accessor_set
-        cache.set(lookup_key, accessor_set, CACHE_SECONDS)
+        cache.set(lookup_key, accessor_set, 0)
         
     def register(self, model_class, accessor_path, lookup_type, negate=False):
         path_tuple = (accessor_path, lookup_type, negate)
@@ -85,7 +86,7 @@ def load_cache_signals(sender, **kwargs):
         cursor = connection.cursor()
         try:
             cursor.execute("SELECT * FROM %s" % CacheBotSignals._meta.db_table)
-        except Exception, ex:
+        except Exception:
             # This should only happen on syncdb when CacheBot tables haven't been created yet, 
             # but there's not really a good way to catch this error
             sql, references = connection.creation.sql_create_model(CacheBotSignals, no_style())
@@ -102,30 +103,27 @@ def load_cache_signals(sender, **kwargs):
                 accessor_set = set()
             accessor_set.add(r[2:5])
             mapping[key] = accessor_set
-        cache.set_many(mapping, CACHE_SECONDS)
+        cache.set_many(mapping, 0)
         cache_signals.ready = True
         
 class_prepared.connect(load_cache_signals)
 
 
 ### INVALIDATION FUNCTIONS ###
-
-def post_update_cachebot(sender, instance, **kwargs):
-    ## TODO auto add select reverse and related ##
-    invalidate_cache(sender, instance)
-
+def post_update_cachebot(sender, queryset, **kwargs):
+    invalidate_cache(sender, queryset)
+post_update.connect(post_update_cachebot)
 
 def post_save_cachebot(sender, instance, **kwargs):
     invalidate_cache(sender, (instance,))
-
+post_save.connect(post_save_cachebot)
 
 def pre_delete_cachebot(sender, instance, **kwargs):
     invalidate_cache(sender, (instance,))
-
+pre_delete.connect(pre_delete_cachebot)
 
 def invalidate_object(instance):
     invalidate_cache(type(instance), (instance,))
-
 
 def invalidate_cache(model_class, objects, **extra_keys):
     """
@@ -143,13 +141,21 @@ def invalidate_cache(model_class, objects, **extra_keys):
     accessor_set = cache_signals.get_global_signals(model_class)
     for obj in objects:
         for (accessor_path, lookup_type, negate) in accessor_set:
-            for value in get_values(obj, accessor_path):
+            if lookup_type != 'exact' or negate:
                 invalidation_key = get_invalidation_key(
                     model_class._meta.db_table, 
                     accessor_path = accessor_path, 
                     negate = negate,
-                    value = value, save=False)
+                    value = '')
                 invalidation_dict[invalidation_key] = None
+            else:
+                for value in get_values(obj, accessor_path):
+                    invalidation_key = get_invalidation_key(
+                        model_class._meta.db_table, 
+                        accessor_path = accessor_path, 
+                        negate = negate,
+                        value = value)
+                    invalidation_dict[invalidation_key] = None
     
     if invalidation_dict:
         invalidation_dict.update(cache.get_many(invalidation_dict.keys()))
@@ -163,7 +169,6 @@ def invalidate_cache(model_class, objects, **extra_keys):
         keys_to_invalidate.update(extra_keys)
         cache.set_many(keys_to_invalidate, 5)
         cache.delete_many(keys_to_invalidate.keys())
-
 
 def invalidate_template_cache(fragment_name, *variables):
     args = md5_constructor(u':'.join(map(urlquote, variables)).encode('utf-8')).hexdigest()

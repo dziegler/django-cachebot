@@ -1,39 +1,29 @@
 from time import time
 
-from django.contrib.auth.models import User, UserManager
-from django.conf import settings
-from django.core.cache import cache
 from django.contrib.contenttypes.models import ContentType
-from django.utils.hashcompat import md5_constructor
-from django.core import management
-from django.db.models.query import QuerySet, ValuesQuerySet
+from django.core.cache import cache
+from django.db.models.query import ValuesQuerySet
 from django.db.models import Q
+from django.test import TestCase
 
-try:
-    from test_utils.testcase import TestCase
-except:
-    from django.test import TestCase
-
-from cachebot.utils import get_invalidation_key
+from cachebot import conf
 from cachebot.models import CacheBotSignals
 from cachebot.signals import cache_signals
 from cachebot.tests.models import FirstModel, SecondModel, ThirdModel, GenericModel, ManyModel
-from cachebot import CACHE_PREFIX
 
 class BaseTestCase(TestCase):
     
+    def tearDown(self):
+        super(BaseTestCase, self).tearDown()
+        conf.CACHE_PREFIX = self._CACHE_PREFIX
+        cache._logger.reset()
+    
     def setUp(self):
         super(BaseTestCase, self).setUp()
-        if hasattr(cache, '_table'):
-            try:
-                management.call_command('createcachetable', cache._table)
-            except:
-                pass
-        
         CacheBotSignals.objects.all().delete()
         cache_signals.local_signals = {}
-        settings.CACHE_PREFIX = CACHE_PREFIX + str(time())
-        settings.CACHE_SECONDS = 30
+        self._CACHE_PREFIX = conf.CACHE_PREFIX
+        conf.CACHE_PREFIX += str(time())
         
 
 class BasicCacheTests(BaseTestCase):
@@ -100,12 +90,6 @@ class BasicCacheTests(BaseTestCase):
         self._test_lookup()
         obj.delete()
         self._test_cache_lookup(from_cache=False)
-    
-    def test_update_signal(self):
-        results = self._test_lookup()
-        if hasattr(results, '__iter__'):
-            results.update(text="megatron")
-            self._test_cache_lookup(from_cache=False)
     
     def test_new_obj(self, obj=None, kwargs=None):
         if obj is None:
@@ -232,8 +216,7 @@ class SelectiveCacheIDTests(ExtraRelatedCacheTests):
         ExtraRelatedCacheTests.setUp(self)
         self.append_cache = True
         self.func = self.manager.cache('obj__obj_id').filter
-
-
+        
 
 class ComplexQueryCacheTests(ExtraRelatedCacheTests):
     

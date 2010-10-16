@@ -27,10 +27,7 @@ class GetExtraRelatedCacheTests(ExtraRelatedCacheTests):
 
 
 class GetOrCreateCacheTests(BaseTestCase):
-    
-    def setUp(self):
-        BaseTestCase.setUp(self)
-    
+
     def test_get_then_create(self):
         self.assertRaises(FirstModel.DoesNotExist, FirstModel.objects.get, **{'text':'new'})
         FirstModel.objects.create(text='new')

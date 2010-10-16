@@ -29,12 +29,19 @@ class CacheClass(BaseCache):
     def _call(self, method, *params):
         with self._pool.reserve() as mc:
             return getattr(mc, method)(*params)
-    
+
     @version_key_decorator
     def add(self, key, value, timeout=None):
         if isinstance(value, unicode):
             value = value.encode('utf-8')
         return self._call('add', smart_str(key), value,
+                self.default_timeout if timeout is None else timeout)
+
+    @version_key_decorator
+    def replace(self, key, value, timeout=None):
+        if isinstance(value, unicode):
+            value = value.encode('utf-8')
+        return self._call('replace', smart_str(key), value,
                 self.default_timeout if timeout is None else timeout)
     
     @version_key_decorator
@@ -80,15 +87,33 @@ class CacheClass(BaseCache):
     
     @version_key_decorator
     def append(self, key, value):
-        self._call("append", smart_str(key), value)
+        return self._call("append", smart_str(key), value)
     
     @version_key_decorator
     def incr(self, key, delta=1):
         return self._call('incr', smart_str(key), delta)
     
     @version_key_decorator
+    def smart_incr(self, key, delta=1, default=0, timeout=None):
+        try:
+            return self.incr(key, delta=1)
+        except pylibmc.NotFound:
+            val = default + delta
+            self.add(key, val, timeout=timeout)
+            return val
+    
+    @version_key_decorator
     def decr(self, key, delta=1):
         return self._call('decr', smart_str(key), delta)
+    
+    @version_key_decorator
+    def smart_decr(self, key, delta=1, default=0, timeout=None):
+        try:
+            return self.incr(key, delta=1)
+        except pylibmc.NotFound:
+            val = default - delta
+            self.add(key, val, timeout=timeout)
+            return val
     
     @version_key_decorator
     def delete_many(self, keys):

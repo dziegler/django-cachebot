@@ -2,30 +2,29 @@ from itertools import chain, ifilter
 
 from django.core.cache import cache
 from django.core.exceptions import ImproperlyConfigured, FieldError
-from django.conf import settings
 from django.db import connection
 from django.db.models import get_models
-from django.db.models.query import QuerySet, ValuesQuerySet, ITER_CHUNK_SIZE
-from django.db.models.fields.related import ForeignRelatedObjectsDescriptor, ReverseManyRelatedObjectsDescriptor, ManyRelatedObjectsDescriptor, ReverseSingleRelatedObjectDescriptor
+from django.db.models.query import QuerySet, ValuesQuerySet
+from django.db.models.fields.related import ForeignRelatedObjectsDescriptor, ReverseManyRelatedObjectsDescriptor, ManyRelatedObjectsDescriptor
 from django.db.models.sql.constants import LOOKUP_SEP
 from django.db.models.sql.where import WhereNode
 from django.utils.hashcompat import md5_constructor
 
-
+from cachebot import conf
+from cachebot.models import post_update
 from cachebot.signals import cache_signals
-from cachebot.utils import get_invalidation_key, get_values
-from cachebot import post_update
-from cachebot.models import CacheBotException
+from cachebot.utils import get_invalidation_key, get_values, set_value
 from cachebot.backends import version_key
-
-RUNNING_TESTS = getattr(settings, 'RUNNING_TESTS', False)
 
 class CacheBot(object):
     
     def __init__(self, queryset, extra_args=''):
         # have to call clone for some reason
         self.queryset = queryset._clone()
-        self.iterator = super(self.queryset.__class__, self.queryset).iterator
+        if isinstance(self.queryset, ValuesQuerySet):
+            self.parent_class = ValuesQuerySet
+        else:
+            self.parent_class = QuerySet
         self.result_key = queryset.get_cache_key(extra_args)
 
         
@@ -36,8 +35,8 @@ class CacheBot(object):
             results = cache.get(self.result_key)
             if results is not None:
                 for obj in results:
-                    if RUNNING_TESTS:
-                        obj = self._set_field(obj,'from_cache', True)
+                    if conf.CACHEBOT_DEBUG_RESULTS:
+                        set_value(obj, 'from_cache', True)
                     yield obj
                 raise StopIteration
         
@@ -48,18 +47,18 @@ class CacheBot(object):
         reversemapping_keys = self.queryset._reversemapping.keys()
         reversemapping_keys.sort()
         
-        for obj in self.iterator():    
+        for obj in self.parent_class.iterator(self.queryset):    
             for related_name in reversemapping_keys:
                 reversemap = self.queryset._target_maps[related_name]
                 related_split = related_name.split(LOOKUP_SEP)
                 for related_obj, related_field in self._nested_select_reverse(obj, related_split):
                     val = reversemap.get(get_values(related_obj, pk_name),[])
-                    related_obj = self._set_field(related_obj, related_field, val)
+                    set_value(related_obj, related_field, val)
                         
             if cache_query:
                 results.append(obj)
-            if RUNNING_TESTS:
-                obj = self._set_field(obj,'from_cache', False)
+            if conf.CACHEBOT_DEBUG_RESULTS:
+                set_value(obj, 'from_cache', False)
             yield obj
             
         if cache_query:
@@ -80,7 +79,12 @@ class CacheBot(object):
             yield obj, related_field
     
     def _is_valid_flush_path(self, accessor_path):
-        return not self.queryset._flush_fields or accessor_path in self.queryset._flush_fields or accessor_path+'_id' in self.queryset._flush_fields
+        if not self.queryset._flush_fields:
+            return True
+        elif (accessor_path in self.queryset._flush_fields) or (accessor_path+'_id' in self.queryset._flush_fields):
+            return True
+        else:
+            return False
     
     def cache_results(self, results):
         """
@@ -88,24 +92,15 @@ class CacheBot(object):
         A CacheBotSignal stores a model and it's accessor path to self.queryset.model.
         """
         # cache the results   
-        
         invalidation_dict = {}
-        
-        if results:
-            added_to_cache = cache.add(self.result_key, results, settings.CACHE_SECONDS)
-        else:
-            added_to_cache = cache.add(self.result_key, None, settings.CACHE_SECONDS)
-        
+        added_to_cache = cache.add(self.result_key, results, conf.CACHE_SECONDS)
         if added_to_cache:
             
-            invalidation_dict.update(dict([(key,None) for key in self.get_invalidation_keys(results)]))
-            invalidation_dict.update(cache.get_many(invalidation_dict.keys()))
+            invalidation_dict.update(dict([(key, self.result_key) for key in self.get_invalidation_keys(results)]))
     
             for child, negate in self.queryset._get_where_clause(self.queryset.query.where):     
-                (table_alias, field_name, db_type), lookup_type, value_annotation, params = child
-                for model_class, accessor_path in self._get_join_paths(table_alias, field_name):
-                    if model_class is None:
-                        continue
+                constraint, lookup_type, value_annotation, params = child                
+                for model_class, accessor_path in self._get_join_paths(constraint.alias, constraint.col):
                     if self._is_valid_flush_path(accessor_path):  
                         cache_signals.register(model_class, accessor_path, lookup_type, negate=negate)
                         invalidation_key = get_invalidation_key(
@@ -113,41 +108,33 @@ class CacheBot(object):
                             accessor_path = accessor_path, 
                             lookup_type = lookup_type, 
                             negate = negate, 
-                            value = params, save=True)
-                        invalidation_dict[invalidation_key] = None
+                            value = params)
+                        invalidation_dict[invalidation_key] = self.result_key
             
                     join_to_tables = ifilter(lambda x: x[0] == model_class._meta.db_table, self.queryset.query.join_map.keys())
                     for join_tuple in join_to_tables:
                         if self._is_valid_flush_path(accessor_path): 
-                            model_class = self.queryset._get_model_class_from_table(join_tuple[1])
+                            model_class, m2m = self.queryset._get_model_class_from_table(join_tuple[1]) 
                             cache_signals.register(model_class, join_tuple[3], lookup_type, negate=negate)
                             invalidation_key = get_invalidation_key(
                                 model_class._meta.db_table, 
                                 accessor_path = join_tuple[3], 
                                 lookup_type = lookup_type, 
                                 negate = negate, 
-                                value = params, save=True)
-                            invalidation_dict[invalidation_key] = None
-    
+                                value = params)
+                            invalidation_dict[invalidation_key] = self.result_key
+            
+            # need to add and append to prevent race conditions
+            # replace this with batch operations later
             for flush_key, flush_list in invalidation_dict.iteritems():
-                # need to add and append to prevent race conditions
-                cache.add(flush_key, self.result_key, settings.CACHE_SECONDS)
-                if flush_list is None or flush_key not in flush_list.split(','):
+                added = cache.add(flush_key, self.result_key, 0)
+                if not added:
                     cache.append(flush_key, ',%s' % self.result_key)
     
     def _get_join_paths(self, table_alias, accessor_path):
-        try:
-            model_class = self.queryset._get_model_class_from_table(table_alias)
-        except CacheBotException:
-            
-            try:
-                # this is a many to many field
-                model_class = [f.rel.to for m in get_models() for f in m._meta.local_many_to_many if f.m2m_db_table() == table_alias][0]
-                accessor_path = model_class._meta.pk.attname
-            except IndexError:
-                # this is an inner join
-                model_class = None
-                accessor_path = None
+        model_class, m2m = self.queryset._get_model_class_from_table(table_alias) 
+        if m2m: 
+            accessor_path = model_class._meta.pk.attname
             
         yield model_class, accessor_path
 
@@ -155,8 +142,6 @@ class CacheBot(object):
         for join_tuple in join_from_tables:
             if join_tuple[0]:
                 for model_class, join_accessor_path in self._get_join_paths(join_tuple[0], join_tuple[2]):
-                    if model_class is None:
-                        continue
                     if join_accessor_path == model_class._meta.pk.attname:
                         for attname, related in self.queryset._get_reverse_relations(model_class):
                             join_accessor_path = attname
@@ -178,7 +163,6 @@ class CacheBot(object):
         query spans multiple tables, also return invalidation keys of any related rows.
         """
         related_fields = self.queryset._related_fields
-        select_reverse_keys = self.queryset._target_maps.keys()
         for obj in results:
             for field, model_class in related_fields.iteritems():
                 pk_name = model_class._meta.pk.attname
@@ -187,39 +171,41 @@ class CacheBot(object):
                     invalidation_key = get_invalidation_key(
                         model_class._meta.db_table, 
                         accessor_path = pk_name, 
-                        value = value, save=True)
+                        value = value)
                     yield invalidation_key
         
-    def _set_field(self, obj, field, value):
-        """Helper method to handle setting values in a CachedQuerySet or ValuesQuerySet object"""
-        try:
-            obj[field] = value
-        except TypeError:
-            setattr(obj, field, value)
-        return obj
-
         
 class CachedQuerySetMixin(object):              
     
     def get_cache_key(self, extra_args=''):
         """Cache key used to identify this query"""
-        query, params = self.query.as_sql()
-        query_string = (query % params).strip()
-        base_key = md5_constructor('.'.join(('cachebot:result_key',str(self.__class__),query_string, extra_args))).hexdigest()
-        return version_key('.'.join((self.model._meta.db_table,base_key)))
+        query, params = self.query.get_compiler(using=self.db).as_sql()
+        query_string = (query % params).strip().encode("utf-8")
+        base_key = md5_constructor('.'.join((query_string, extra_args))).hexdigest()
+        return version_key('.'.join((self.model._meta.db_table, 'cachebot.results', base_key)))
     
     def _get_model_class_from_table(self, table):
         """Helper method that accepts a table name and returns the Django model class it belongs to"""
         try:
-            return [m for m in get_models() if connection.introspection.table_name_converter(m._meta.db_table) in map(connection.introspection.table_name_converter,[table])][0]
+            model_class = [m for m in get_models() if connection.introspection.table_name_converter(m._meta.db_table) in map(connection.introspection.table_name_converter,[table])][0] 
+            m2m = False 
         except IndexError:
-            raise CacheBotException("Could not find model for table %s" % table)
-    
+            try: 
+                # this is a many to many field 
+                model_class = [f.rel.to for m in get_models() for f in m._meta.local_many_to_many if f.m2m_db_table() == table][0] 
+                m2m = True 
+            except IndexError: 
+                # this is an inner join 
+                table = self.query.alias_map[table][0]
+                return self._get_model_class_from_table(table)
+        return model_class, m2m 
+
     @property
     def _related_fields(self):
         """Returns the primary key accessor name and model class for any table this query spans."""
+        model_class, m2m = self._get_model_class_from_table(self.model._meta.db_table) 
         related_fields = {
-            self.model._meta.pk.attname: self._get_model_class_from_table(self.model._meta.db_table)
+            self.model._meta.pk.attname: model_class
         }
         for attname, model_class in self._get_related_models(self.model):
             related_fields[attname] = model_class
@@ -283,8 +269,11 @@ class CachedQuerySetMixin(object):
             for attname, related in self._get_reverse_relations(self.model):
                 reversemapping[attname + '_cache'] = attname
             kwargs['_reversemapping'] = reversemapping
-
-        clone = super(queryset.__class__, queryset)._clone(klass=klass, setup=setup, **kwargs)
+        if isinstance(queryset, ValuesQuerySet):
+            parent_class = ValuesQuerySet
+        else:
+            parent_class = QuerySet
+        clone = parent_class._clone(self, klass=klass, setup=setup, **kwargs)
         if not hasattr(clone, '_cache_query'):
             clone._cache_query = getattr(self, '_cache_query', False)
         if not hasattr(clone, '_reversemapping'):
@@ -430,7 +419,7 @@ class CachedQuerySetMixin(object):
         be added to select_reverse, because we need them for invalidation. Do not cache queries on
         tables in CACHEBOT_TABLE_BLACKLIST
         """
-        _cache_query = self.model._meta.db_table not in settings.CACHEBOT_TABLE_BLACKLIST
+        _cache_query = self.model._meta.db_table not in conf.CACHEBOT_TABLE_BLACKLIST
             
         return self._clone(setup=True, _cache_query=_cache_query, _flush_fields=flush_fields)
     
@@ -439,10 +428,6 @@ class CachedQuerySetMixin(object):
             return super(CachedQuerySetMixin, self.cache()).get(*args, **kwargs)
         else:
             return super(CachedQuerySetMixin, self).get(*args, **kwargs)
-    
-    def count(self):
-        # don't cache counts for now
-        return self.query.get_count()
     
         
 class CachedQuerySet(CachedQuerySetMixin, QuerySet):
@@ -454,12 +439,11 @@ class CachedQuerySet(CachedQuerySetMixin, QuerySet):
     
     def _clone(self, klass=None, setup=False, **kwargs):
         return self._base_clone(self, klass=klass, setup=setup, **kwargs)
-        
+    
     def update(self, **kwargs):
-        super(CachedQuerySet, self).update(**kwargs)
-        post_update.send(sender=self.model, instance=self)
-        
-        
+        post_update.send(sender=self.model, queryset=self)
+        return super(CachedQuerySet, self).update(**kwargs)    
+    
 class CachedValuesQuerySet(CachedQuerySetMixin, ValuesQuerySet):
     
     def iterator(self):      
@@ -471,6 +455,6 @@ class CachedValuesQuerySet(CachedQuerySetMixin, ValuesQuerySet):
         return self._base_clone(self, klass=klass, setup=setup, **kwargs)
     
     def update(self, **kwargs):
-        super(CachedValuesQuerySet, self).update(**kwargs)
-        post_update.send(sender=self.model, instance=self)
-        
+        post_update.send(sender=self.model, queryset=self)
+        return super(CachedQuerySet, self).update(**kwargs)  
+    

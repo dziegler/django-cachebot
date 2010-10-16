@@ -17,10 +17,6 @@ Installation
 
     CACHE_BACKEND = 'cachebot.backends.memcached://127.0.0.1:11211/?timeout=2591000'
 
-4. Run::
-    
-    python manage.py patch_django_manager
-
 This will patch Django and make CacheBotManager the default manager used by your Django project.
 
 
@@ -91,7 +87,7 @@ Suppose you have a development and production server sharing the same memcached 
 Caveats (Important!)
 ********************
 
-1. django-cachebot only works with Django 1.1.1. It's possible that it could work on other versions with some minor tweaking, but I haven't tested it.
+1. django-cachebot requires django 1.2 or greater 
 
 
 2. Symmetric ManyToMany fields will break. Sorry, I'm working on it. If you have a model that uses one of these and you're using CacheBotManager as the default manager, you should fall back to the regular Django manager like so::
@@ -137,10 +133,5 @@ Caveats (Important!)
 Dependencies
 *************
 
-* Django 1.1.1
+* Django 1.2
 
-
-Acknowledgements
-****************
-
-Thanks to the good folks at Mingle LLC for letting me open source this
