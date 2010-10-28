@@ -3,27 +3,30 @@ Django-cachebot
 
 Django-cachebot provides automated caching and invalidation for the Django ORM. 
 
-http://groups.google.com/group/django-cachebot
-
 Installation
 ************
 
-1. Download django-cachebot and run::
-    
-    python setup.py install
+1. ``easy_install django-cachebot`` or ``pip install django-cachebot``
     
 2. Add ``cachebot`` to your ``INSTALLED_APPS``
+
 3. Set a cache backend to one of the backends in ``cachebots.backends``, for instance:: 
 
     CACHE_BACKEND = 'cachebot.backends.memcached://127.0.0.1:11211/?timeout=0'
 
-This will patch Django and make CacheBotManager the default manager used by your Django project.
+Current supported backends are:: 
+
+    cachebot.backends.dummy
+    cachebot.backends.memcached
+    cachebot.backends.pylibmcd
+
+Cachebot monkey patches the default Django manager and queryset to make CacheBotManager and CachedQuerySet the defaults used by your Django project.
 
 
 Usage
 ******
 
-Supposed you had a query that looked like this and you wanted to cache it::
+Suppose you had a query that looked like this and you wanted to cache it::
 
     Photo.objects.filter(user=user, status=2)
 
@@ -82,7 +85,6 @@ if ``CACHEBOT_CACHE_ALL = True``, all queries will automatically be cached. This
 ``CACHE_PREFIX``  default: ''
 
 Suppose you have a development and production server sharing the same memcached server. Normally this is a bad idea because each server might be overwriting the other server's cache keys. If you add ``CACHE_PREFIX`` to your settings, all cache keys will have that prefix appended to them so you can avoid this problem.
-
 
 Caveats (Important!)
 ********************
