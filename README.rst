@@ -15,7 +15,7 @@ Installation
 2. Add ``cachebot`` to your ``INSTALLED_APPS``
 3. Set a cache backend to one of the backends in ``cachebots.backends``, for instance:: 
 
-    CACHE_BACKEND = 'cachebot.backends.memcached://127.0.0.1:11211/?timeout=2591000'
+    CACHE_BACKEND = 'cachebot.backends.memcached://127.0.0.1:11211/?timeout=0'
 
 This will patch Django and make CacheBotManager the default manager used by your Django project.
 
