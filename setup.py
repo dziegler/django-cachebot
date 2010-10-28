@@ -14,11 +14,13 @@ setup(
     description = 'Automated caching and invalidation for the Django ORM',
     long_description = README,
     url = 'http://github.com/dziegler/django-cachebot',
+    download_url = 'http://github.com/dziegler/django-cachebot/archives/master',
     author = 'David Ziegler',
     author_email = 'david.ziegler@gmail.com',
     license = 'BSD',
     zip_safe = False,
     packages = find_packages(),
+    include_package_data = True,
     install_requires = [
         'django>=1.2',
     ],
