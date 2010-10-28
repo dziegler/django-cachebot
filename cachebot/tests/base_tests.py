@@ -1,30 +1,21 @@
-from time import time
-
 from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache
 from django.db.models.query import ValuesQuerySet
 from django.db.models import Q
 from django.test import TestCase
 
-from cachebot import conf
-from cachebot.models import CacheBotSignals
-from cachebot.signals import cache_signals
 from cachebot.tests.models import FirstModel, SecondModel, ThirdModel, GenericModel, ManyModel
+from cachebot.utils import flush_cache
 
 class BaseTestCase(TestCase):
     
     def tearDown(self):
         super(BaseTestCase, self).tearDown()
-        conf.CACHE_PREFIX = self._CACHE_PREFIX
         cache._logger.reset()
     
     def setUp(self):
         super(BaseTestCase, self).setUp()
-        CacheBotSignals.objects.all().delete()
-        cache_signals.local_signals = {}
-        self._CACHE_PREFIX = conf.CACHE_PREFIX
-        conf.CACHE_PREFIX += str(time())
-        
+        flush_cache(hard=False)
 
 class BasicCacheTests(BaseTestCase):
     

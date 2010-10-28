@@ -10,6 +10,7 @@ CACHEBOT_TABLE_BLACKLIST = getattr(settings, 'CACHEBOT_TABLE_BLACKLIST', ('djang
 CACHEBOT_ENABLE_LOG = getattr(settings, 'CACHEBOT_ENABLE_LOG', False)
 CACHEBOT_LOG = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'cachebot.log')
 CACHEBOT_DEBUG_RESULTS = getattr(settings, 'CACHEBOT_DEBUG_RESULTS', False)
+CACHE_INVALIDATION_TIMEOUT = getattr(settings, 'CACHE_INVALIDATION_TIMEOUT', 5)
 if getattr(settings, 'RUNNING_TESTS', False):
     CACHE_PREFIX = 'test_%s' % CACHE_PREFIX
     CACHE_SECONDS = 600

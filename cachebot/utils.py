@@ -1,3 +1,5 @@
+from time import time
+
 from django.core.cache import cache
 from django.utils.hashcompat import md5_constructor
 from django.db.models.sql.constants import LOOKUP_SEP
@@ -172,3 +174,16 @@ def fetch_instances(model, field, values):
             del item_key_to_object[k] # this happens when cachebot has cached a result of [] for the query
         
     return item_key_to_object
+
+def flush_cache(hard=True):
+    from cachebot import conf
+    from cachebot.models import CacheBotSignals
+    from cachebot.signals import cache_signals
+
+    CacheBotSignals.objects.all().delete()
+    cache_signals.local_signals = {}
+    if hard:
+        cache.clear()
+    else:
+        conf.CACHE_PREFIX = md5_constructor(conf.CACHE_PREFIX + str(time())).hexdigest()
+        

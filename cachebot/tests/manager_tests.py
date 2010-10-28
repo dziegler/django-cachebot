@@ -1,7 +1,9 @@
+import time
+
 from django.db import connection
 from django.conf import settings
-from django.core.cache import cache
 
+from cachebot import conf
 from cachebot.tests.base_tests import BaseTestCase, BasicCacheTests, FieldCacheTests, RelatedCacheTests, ExtraRelatedCacheTests
 from cachebot.tests.models import FirstModel
 
@@ -31,6 +33,7 @@ class GetOrCreateCacheTests(BaseTestCase):
     def test_get_then_create(self):
         self.assertRaises(FirstModel.DoesNotExist, FirstModel.objects.get, **{'text':'new'})
         FirstModel.objects.create(text='new')
+        time.sleep(conf.CACHE_INVALIDATION_TIMEOUT)
         obj = FirstModel.objects.get(text='new')
         self.assertEqual(obj.from_cache,False)
         obj = FirstModel.objects.get(text='new')
@@ -39,6 +42,7 @@ class GetOrCreateCacheTests(BaseTestCase):
     def test_get_or_create(self):
         obj, created = FirstModel.objects.get_or_create(text='new')
         self.assertEqual(created, True)
+        time.sleep(conf.CACHE_INVALIDATION_TIMEOUT)
         obj = FirstModel.objects.get(text='new')
         self.assertEqual(obj.from_cache,False)
         obj = FirstModel.objects.get(text='new')

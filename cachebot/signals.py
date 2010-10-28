@@ -1,5 +1,3 @@
-from itertools import chain
-
 from django.core.cache import cache
 from django.utils.http import urlquote
 from django.utils.hashcompat import md5_constructor
@@ -164,12 +162,12 @@ def invalidate_cache(model_class, objects, **extra_keys):
         for obj_key, cache_key_list in invalidation_dict.iteritems():
             if cache_key_list:
                 cache_keys.update(cache_key_list.split(','))
-
-        keys_to_invalidate = dict([(key, None) for key in chain(cache_keys, invalidation_dict.keys())])
-        keys_to_invalidate.update(extra_keys)
-        cache.set_many(keys_to_invalidate, 5)
-        cache.delete_many(keys_to_invalidate.keys())
-
+        
+        if cache_keys:
+            cache.set_many(dict([(key, None) for key in cache_keys]), conf.CACHE_INVALIDATION_TIMEOUT)
+        invalidation_dict.update(extra_keys)
+        cache.delete_many(invalidation_dict.keys())
+        
 def invalidate_template_cache(fragment_name, *variables):
     args = md5_constructor(u':'.join(map(urlquote, variables)).encode('utf-8')).hexdigest()
     cache_key = 'template.cache.%s.%s' % (fragment_name, args)

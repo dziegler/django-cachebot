@@ -1,4 +1,4 @@
-from itertools import chain, ifilter
+from itertools import chain
 
 from django.core.cache import cache
 from django.core.exceptions import ImproperlyConfigured, FieldError
@@ -86,6 +86,15 @@ class CacheBot(object):
         else:
             return False
     
+    def _register_signal(self, model_class, accessor_path, lookup_type, negate, params):
+        cache_signals.register(model_class, accessor_path, lookup_type, negate=negate)
+        return get_invalidation_key(
+            model_class._meta.db_table, 
+            accessor_path = accessor_path, 
+            lookup_type = lookup_type, 
+            negate = negate, 
+            value = params)
+    
     def cache_results(self, results):
         """
         Create invalidation signals for these results in the form of CacheBotSignals.
@@ -93,8 +102,7 @@ class CacheBot(object):
         """
         # cache the results   
         invalidation_dict = {}
-        added_to_cache = cache.add(self.result_key, results, conf.CACHE_SECONDS)
-        if added_to_cache:
+        if cache.add(self.result_key, results, conf.CACHE_SECONDS):
             
             invalidation_dict.update(dict([(key, self.result_key) for key in self.get_invalidation_keys(results)]))
     
@@ -102,26 +110,13 @@ class CacheBot(object):
                 constraint, lookup_type, value_annotation, params = child                
                 for model_class, accessor_path in self._get_join_paths(constraint.alias, constraint.col):
                     if self._is_valid_flush_path(accessor_path):  
-                        cache_signals.register(model_class, accessor_path, lookup_type, negate=negate)
-                        invalidation_key = get_invalidation_key(
-                            model_class._meta.db_table, 
-                            accessor_path = accessor_path, 
-                            lookup_type = lookup_type, 
-                            negate = negate, 
-                            value = params)
+                        invalidation_key = self._register_signal(model_class, accessor_path, lookup_type, negate, params)
                         invalidation_dict[invalidation_key] = self.result_key
-            
-                    join_to_tables = ifilter(lambda x: x[0] == model_class._meta.db_table, self.queryset.query.join_map.keys())
-                    for join_tuple in join_to_tables:
-                        if self._is_valid_flush_path(accessor_path): 
-                            model_class, m2m = self.queryset._get_model_class_from_table(join_tuple[1]) 
-                            cache_signals.register(model_class, join_tuple[3], lookup_type, negate=negate)
-                            invalidation_key = get_invalidation_key(
-                                model_class._meta.db_table, 
-                                accessor_path = join_tuple[3], 
-                                lookup_type = lookup_type, 
-                                negate = negate, 
-                                value = params)
+                            
+                    for join_tuple in self.queryset.query.join_map.keys():
+                        if join_tuple[0] == model_class._meta.db_table and self._is_valid_flush_path(accessor_path): 
+                            model_klass, m2m = self.queryset._get_model_class_from_table(join_tuple[1]) 
+                            invalidation_key = self._register_signal(model_klass, join_tuple[3], lookup_type, negate, params)
                             invalidation_dict[invalidation_key] = self.result_key
             
             # need to add and append to prevent race conditions
@@ -138,9 +133,8 @@ class CacheBot(object):
             
         yield model_class, accessor_path
 
-        join_from_tables = ifilter(lambda x: x[1] == table_alias, self.queryset.query.join_map.keys())
-        for join_tuple in join_from_tables:
-            if join_tuple[0]:
+        for join_tuple in self.queryset.query.join_map.keys():
+            if join_tuple[0] and join_tuple[1] == table_alias:
                 for model_class, join_accessor_path in self._get_join_paths(join_tuple[0], join_tuple[2]):
                     if join_accessor_path == model_class._meta.pk.attname:
                         for attname, related in self.queryset._get_reverse_relations(model_class):
@@ -155,7 +149,7 @@ class CacheBot(object):
                         yield model_class, LOOKUP_SEP.join((join_accessor_path, accessor_path))
                     else:
                         yield model_class, LOOKUP_SEP.join((join_accessor_path, accessor_path))
-
+                
 
     def get_invalidation_keys(self, results):
         """
@@ -223,23 +217,24 @@ class CachedQuerySetMixin(object):
                 related_models.add((rev_reversemapping[attname], related.model))
 
         for field in parent_model._meta.fields:
-            if field.rel and field.rel.to._meta.db_table in self.query.tables:
+            if field.rel and field.rel.to._meta.db_table in self.query.tables and field.rel.to != parent_model:
                 related_models.add((field.attname, field.rel.to))
         
         for attname, model_class in related_models:
             yield attname, model_class
             if attname.endswith("_id"):
                 attname = attname[:-3]
-                for join_attname, model_class in self._get_related_models(model_class):
-                    yield LOOKUP_SEP.join((attname,join_attname)), model_class
+                for join_attname, model_klass in self._get_related_models(model_class):
+                    yield LOOKUP_SEP.join((attname,join_attname)), model_klass
     
     def _get_reverse_relations(self, model_class):
         for related in chain(model_class._meta.get_all_related_objects(), model_class._meta.get_all_related_many_to_many_objects()):
             if related.opts.db_table in self.query.tables:
                 related_name = related.get_accessor_name()
                 yield related_name, related
-                for attname, join_related in self._get_reverse_relations(related.model):
-                    yield LOOKUP_SEP.join((related_name + '_cache', attname)), join_related
+                if related.model != related.parent_model:
+                    for attname, join_related in self._get_reverse_relations(related.model):
+                        yield LOOKUP_SEP.join((related_name + '_cache', attname)), join_related
                 
     def _base_clone(self, queryset, klass=None, setup=False, **kwargs):
         """
@@ -420,7 +415,6 @@ class CachedQuerySetMixin(object):
         tables in CACHEBOT_TABLE_BLACKLIST
         """
         _cache_query = self.model._meta.db_table not in conf.CACHEBOT_TABLE_BLACKLIST
-            
         return self._clone(setup=True, _cache_query=_cache_query, _flush_fields=flush_fields)
     
     def get(self, *args, **kwargs):
