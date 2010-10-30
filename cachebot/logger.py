@@ -1,14 +1,13 @@
+import logging
 import threading
-
 from time import time
 
 from django.template import Template, Context
 from django.utils.translation import ugettext as _
 
 from cachebot import conf
-from generic_utils.logger import create_logger
 
-cachebot_log = create_logger('cachebot')
+cachebot_log = logging.getLogger(__name__)
 
 class CacheLogger(threading.local):
 
