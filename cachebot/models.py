@@ -25,3 +25,6 @@ if conf.CACHEBOT_ENABLE_LOG:
     from django.core.cache import cache
     
     request_finished.connect(cache._logger.reset)
+
+from cachebot.monkey import patch_all
+patch_all()
