@@ -1,9 +1,11 @@
 from django.core.cache import cache
-from django.utils.http import urlquote
-from django.utils.hashcompat import md5_constructor
-from django.db.models.signals import class_prepared, post_save, pre_delete
 from django.core.management.color import no_style
 from django.core.signals import request_finished
+from django.db import transaction
+from django.db.models.signals import class_prepared, post_save, pre_delete
+from django.utils.http import urlquote
+from django.utils.hashcompat import md5_constructor
+
 from cachebot import conf
 from cachebot.models import CacheBotSignals, post_update
 from cachebot.utils import get_invalidation_key, get_values
@@ -74,7 +76,7 @@ class CacheSignals(object):
 
 cache_signals = CacheSignals()
 
-
+@transaction.commit_on_success
 def load_cache_signals(sender, **kwargs):
     """On startup, sync signals with registered models"""
     from django.db import connection
@@ -85,6 +87,7 @@ def load_cache_signals(sender, **kwargs):
         try:
             cursor.execute("SELECT * FROM %s" % CacheBotSignals._meta.db_table)
         except Exception:
+            transaction.commit()
             # This should only happen on syncdb when CacheBot tables haven't been created yet, 
             # but there's not really a good way to catch this error
             sql, references = connection.creation.sql_create_model(CacheBotSignals, no_style())
