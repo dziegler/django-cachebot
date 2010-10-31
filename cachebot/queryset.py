@@ -426,6 +426,10 @@ class CachedQuerySetMixin(object):
         
 class CachedQuerySet(CachedQuerySetMixin, QuerySet):
     
+    def __init__(self, *args, **kwargs):
+        super(CachedQuerySet, self).__init__(*args, **kwargs)
+        self._reversemapping = {}
+    
     def iterator(self):    
         for obj in CacheBot(self):
             yield obj
@@ -441,6 +445,10 @@ class CachedQuerySet(CachedQuerySetMixin, QuerySet):
     
 class CachedValuesQuerySet(CachedQuerySetMixin, ValuesQuerySet):
     
+    def __init__(self, *args, **kwargs):
+        super(CachedValuesQuerySet, self).__init__(*args, **kwargs)
+        self._reversemapping = {}
+        
     def iterator(self):      
         for obj in CacheBot(self):
             yield obj
