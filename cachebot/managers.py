@@ -1,39 +1,26 @@
-def patch_manager():
-    from django.db import models
-    from cachebot import conf
-    
-    class CachebotManager(models.Manager):
+from django.db.models import Manager
 
-        def __init__(self, cache_all=conf.CACHEBOT_CACHE_ALL, cache_get=conf.CACHEBOT_CACHE_GET, **kwargs):
-            super(CachebotManager, self).__init__(**kwargs)
-            self.cache_all = cache_all
-            if cache_all:
-                self.cache_get = True
-            else:
-                self.cache_get = cache_get
-    
-        def get_query_set(self):
-            qs = super(CachebotManager, self).get_query_set()
-            if self.cache_all:
-                return qs.cache()
-            else:
-                return qs
+from cachebot import conf
 
-        def cache(self, *args):
-            return self.get_query_set().cache(*args)
+class CacheBotManager(Manager):
 
-        def select_reverse(self, *args, **kwargs):
-            return self.get_query_set().select_reverse(*args, **kwargs)
-    
-    models.Manager = CachebotManager
+    def __init__(self, cache_all=conf.CACHEBOT_CACHE_ALL, cache_get=conf.CACHEBOT_CACHE_GET, **kwargs):
+        super(CacheBotManager, self).__init__(**kwargs)
+        self.cache_all = cache_all
+        if cache_all:
+            self.cache_get = True
+        else:
+            self.cache_get = cache_get
 
-def patch_queryset():
-    from django.db.models import query
-    from cachebot.queryset import CachedQuerySet
-    query.QuerySet = CachedQuerySet
+    def get_query_set(self):
+        qs = super(CacheBotManager, self).get_query_set()
+        if self.cache_all:
+            return qs.cache()
+        else:
+            return qs
 
-def patch_all(manager=True, queryset=True):
-    if manager:
-        patch_manager()
-    if queryset:
-        patch_queryset()
+    def cache(self, *args):
+        return self.get_query_set().cache(*args)
+
+    def select_reverse(self, *args, **kwargs):
+        return self.get_query_set().select_reverse(*args, **kwargs)
