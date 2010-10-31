@@ -438,6 +438,7 @@ class CachedQuerySet(CachedQuerySetMixin, QuerySet):
         post_update.send(sender=self.model, queryset=self)
         return super(CachedQuerySet, self).update(**kwargs)    
     
+    
 class CachedValuesQuerySet(CachedQuerySetMixin, ValuesQuerySet):
     
     def iterator(self):      
@@ -451,4 +452,4 @@ class CachedValuesQuerySet(CachedQuerySetMixin, ValuesQuerySet):
     def update(self, **kwargs):
         post_update.send(sender=self.model, queryset=self)
         return super(CachedQuerySet, self).update(**kwargs)  
-    
+
