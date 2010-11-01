@@ -20,13 +20,38 @@ Current supported backends are::
     cachebot.backends.memcached
     cachebot.backends.pylibmcd
 
-Cachebot monkey patches the default Django manager and queryset to make CacheBotManager and CachedQuerySet the defaults used by your Django project.
 
-
+4. **New in 0.3!** Cachebot doesn't monkey patch models anymore. If you want to add caching to a model, the model's manager needs to be CacheBotManager or a subclass of it, e.g::
+    
+    from django.db import models
+    from cachebot.managers import CacheBotManager
+    
+    class Author(models.Model):
+        name = models.CharField(max_length=50)
+        objects = CacheBotManager()
+    
+    class BookManager(CacheBotManager):
+        
+        def for_author(self, name):
+            return self.filter(author__name=name)
+    
+    class Book(models.Model):
+        title = models.CharField(max_length=50)
+        author = models.ForeignKey(Author)
+        objects = BookManager()
+ 
 Usage
 ******
 
-Suppose you had a query that looked like this and you wanted to cache it::
+By default, all ``get`` queries will be cached::
+    
+    photo = Photo.objects.get(user=user)
+
+If you don't want this, call ``CacheBotManager(cache_get=False)`` when defining the manager, or set ``CACHEBOT_CACHE_GET=False`` in settings.
+
+------------
+
+For more complex queries, suppose you had a query that looked like this and you wanted to cache it::
 
     Photo.objects.filter(user=user, status=2)
 
@@ -64,27 +89,15 @@ django-cachebot can also handle select_related, forward relations, and reverse r
 Settings
 ********
 
-``CACHEBOT_CACHE_GET``  default: False
+ - ``CACHEBOT_CACHE_GET``
+ 
+   - default: ``True``
+   - If set to ``True``, ``CacheBotManager`` will be called with ``cache_get=True`` by default.
 
-if ``CACHEBOT_CACHE_GET = True``, all objects.get queries will automatically be cached. This can be overridden at the manager level like so::
-    
-    class Photos(models.Model):
-        ...
-        objects = models.Manager(cache_get=True)
-
-
-``CACHEBOT_CACHE_ALL``  default: False
-
-if ``CACHEBOT_CACHE_ALL = True``, all queries will automatically be cached. This can be overridden at the manager level like so::
-    
-    class Photos(models.Model):
-        ...
-        objects = models.Manager(cache_all=True)
-
-
-``CACHE_PREFIX``  default: ''
-
-Suppose you have a development and production server sharing the same memcached server. Normally this is a bad idea because each server might be overwriting the other server's cache keys. If you add ``CACHE_PREFIX`` to your settings, all cache keys will have that prefix appended to them so you can avoid this problem.
+ - ``CACHE_PREFIX``  
+ 
+   - default: ``''``
+   - Suppose you have a development and production server sharing the same memcached server. Normally this is a bad idea because each server might be overwriting the other server's cache keys. If you add ``CACHE_PREFIX`` to your settings, all cache keys will have that prefix appended to them so you can avoid this problem.
 
 Caveats (Important!)
 ********************
