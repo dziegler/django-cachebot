@@ -1,8 +1,6 @@
 from django.core.cache import cache
-from django.core.management.color import no_style
-from django.core.signals import request_finished
-from django.db import transaction
-from django.db.models.signals import class_prepared, post_save, pre_delete
+from django.core.signals import request_finished, request_started
+from django.db.models.signals import post_save, pre_delete
 from django.utils.http import urlquote
 from django.utils.hashcompat import md5_constructor
 
@@ -76,38 +74,20 @@ class CacheSignals(object):
 
 cache_signals = CacheSignals()
 
-@transaction.commit_on_success
-def load_cache_signals(sender, **kwargs):
+def load_cache_signals(**kwargs):
     """On startup, sync signals with registered models"""
-    from django.db import connection
-
     if not cache_signals.ready:
-        # Have to load directly from db, because CacheBotSignals is not prepared yet
-        cursor = connection.cursor()
-        try:
-            cursor.execute("SELECT * FROM %s" % CacheBotSignals._meta.db_table)
-        except Exception:
-            transaction.commit()
-            # This should only happen on syncdb when CacheBot tables haven't been created yet, 
-            # but there's not really a good way to catch this error
-            sql, references = connection.creation.sql_create_model(CacheBotSignals, no_style())
-            cursor.execute(sql[0])
-            cursor.execute("SELECT * FROM %s" % CacheBotSignals._meta.db_table)
-
-        results = cursor.fetchall()
-        tables = [r[1] for r in results]
+        results = CacheBotSignals.objects.all()
+        tables = [r.table_name for r in results]
         mapping = cache.get_many(tables)
-        for r in results:
-            key = version_key('.'.join(('cachesignals', r[1])))
-            accessor_set = mapping.get(key)
-            if accessor_set is None:
-                accessor_set = set()
-            accessor_set.add(r[2:5])
+        for result in results:
+            key = version_key(u'.'.join(('cachesignals', result.table_name)))
+            accessor_set = mapping.get(key) or set()
+            accessor_set.add((result.accessor_path, result.lookup_type, result.exclude))
             mapping[key] = accessor_set
         cache.set_many(mapping, 0)
         cache_signals.ready = True
-        
-class_prepared.connect(load_cache_signals)
+request_started.connect(load_cache_signals)
 
 
 ### INVALIDATION FUNCTIONS ###
