@@ -4,7 +4,7 @@ from django.conf import settings
 
 CACHE_SECONDS = getattr(settings, 'CACHE_SECONDS', 0)
 CACHE_PREFIX = getattr(settings, 'CACHE_PREFIX', '').encode('utf-8')
-CACHEBOT_CACHE_GET = getattr(settings, 'CACHEBOT_CACHE_GET', False)
+CACHEBOT_CACHE_GET = getattr(settings, 'CACHEBOT_CACHE_GET', True)
 CACHEBOT_CACHE_ALL = getattr(settings, 'CACHEBOT_CACHE_ALL', False)
 CACHEBOT_TABLE_BLACKLIST = getattr(settings, 'CACHEBOT_TABLE_BLACKLIST', ('django_session', 'django_content_type', 'south_migrationhistory'))
 CACHEBOT_ENABLE_LOG = getattr(settings, 'CACHEBOT_ENABLE_LOG', False)
