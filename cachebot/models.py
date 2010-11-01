@@ -26,5 +26,5 @@ if conf.CACHEBOT_ENABLE_LOG:
     
     request_finished.connect(cache._logger.reset)
 
-from cachebot.monkey import patch_all
-patch_all()
+if conf.RUNNING_TESTS:
+    from cachebot.test_models import *

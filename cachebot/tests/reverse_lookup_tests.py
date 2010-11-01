@@ -1,5 +1,5 @@
+from cachebot.models import FirstModel
 from cachebot.tests.base_tests import RelatedCacheTests, ExtraRelatedCacheTests
-from cachebot.tests.models import FirstModel, SecondModel, ThirdModel
 
 class ReverseRelatedCacheTests(RelatedCacheTests):
     

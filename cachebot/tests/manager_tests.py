@@ -4,8 +4,8 @@ from django.db import connection
 from django.conf import settings
 
 from cachebot import conf
+from cachebot.models import FirstModel
 from cachebot.tests.base_tests import BaseTestCase, BasicCacheTests, FieldCacheTests, RelatedCacheTests, ExtraRelatedCacheTests
-from cachebot.tests.models import FirstModel
 
 class GetBasicCacheTests(BasicCacheTests):
     

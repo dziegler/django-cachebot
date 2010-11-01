@@ -1,6 +1,7 @@
 from django.db.models import Manager
 
 from cachebot import conf
+from cachebot.queryset import CachedQuerySet
 
 class CacheBotManager(Manager):
 
@@ -13,7 +14,7 @@ class CacheBotManager(Manager):
             self.cache_get = cache_get
 
     def get_query_set(self):
-        qs = super(CacheBotManager, self).get_query_set()
+        qs = CachedQuerySet(self.model, using=self.db)
         if self.cache_all:
             return qs.cache()
         else:

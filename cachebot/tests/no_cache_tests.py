@@ -1,7 +1,6 @@
-
 from cachebot import conf
+from cachebot.models import FirstModel, NoCacheModel
 from cachebot.tests.base_tests import BaseTestCase
-from cachebot.tests.models import FirstModel, NoCacheModel
 
 class BlacklistCacheTests(BaseTestCase):
     
