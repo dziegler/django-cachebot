@@ -21,7 +21,7 @@ Current supported backends are::
     cachebot.backends.pylibmcd
 
 
-4. **New in 0.3!** Cachebot doesn't monkey patch models anymore. If you want to add caching to a model, the model's manager needs to be CacheBotManager or a subclass of it, e.g::
+4. **New in 0.3!** Cachebot doesn't monkey patch models anymore. If you want to add caching to a model, the model's manager needs to be ``CacheBotManager`` or a subclass of it, e.g::
     
     from django.db import models
     from cachebot.managers import CacheBotManager
@@ -102,9 +102,7 @@ Settings
 Caveats (Important!)
 ********************
 
-1. django-cachebot requires django 1.2 or greater 
-
-2. Adding/Removing objects with a ManyRelatedManager will not automatically invalidate. This is because signals for these types of operations are not in Django until 1.2. Until then, you'll need to manually invalidate these queries like so::
+1. Adding/Removing objects with a ManyRelatedManager will not automatically invalidate. You'll need to manually invalidate these queries like so::
 
     from cachebot.signals import invalidate_object
     
@@ -112,26 +110,20 @@ Caveats (Important!)
     invalidate_object(user)
     invalidate_object(friend)
 
+2. ``count()`` queries will not get cached.
 
-3. ``count()`` queries will not get cached.
-
-
-4. If you're invalidating on a field that is in a range or exclude query, these queries will get invalidated when anything in the table changes. For example the following would get invalidated when anything on the User table changed::
+3. If you're invalidating on a field that is in a range or exclude query, these queries will get invalidated when anything in the table changes. For example the following would get invalidated when anything on the User table changed::
 
     Photo.objects.cache('user').filter(user__in=users, status=2)
 
     Photo.objects.cache('user').exclude(user=user, status=2)
     
 
-5. You should probably use a tool like django-memcache-status_ to check on the status of your cache. If memcache overfills and starts dropping keys, it's possible that your queries might not get invalidated.
+4. You should probably use a tool like django-memcache-status_ to check on the status of your cache. If memcache overfills and starts dropping keys, it's possible that your queries might not get invalidated.
 
-
-6. .values_list() doesn't cache yet. You should do something like this instead::
+5. .values_list() doesn't cache yet. You should do something like this instead::
 
     [photo['id'] for photo in Photo.objects.cache('user').filter(user=user).values('id')]
-
-
-7. It's possible that there are edge cases I've missed. django-cachebot is still in it's infancy, so you should still double check that your queries are getting cached and invalidated. Please let me know if you notice any weird discrepancies.
 
 
 .. _django-memcache-status: http://github.com/bartTC/django-memcache-status
