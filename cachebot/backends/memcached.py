@@ -1,112 +1,76 @@
+from threading import local
+
 from django.core.cache.backends import memcached
-from django.core.cache.backends.base import InvalidCacheBackendError
-from django.utils.encoding import smart_str
 
-from cachebot.backends import version_key_decorator
-from cachebot.logger import CacheLogger
+from cachebot.logger import CacheLogDecorator
 
-try:
-    import cmemcache as memcache
-except ImportError:
-    try:
-        import memcache
-    except:
-        raise InvalidCacheBackendError("libmemcached backend requires either the 'python-memcached' or 'cmemcached' library")
-
-class CacheClass(memcached.CacheClass):
-    
-    def __init__(self, *args, **kwargs):
-        super(CacheClass, self).__init__(*args, **kwargs)
-        self._logger = CacheLogger()
-
-    @version_key_decorator
-    def add(self, key, value, timeout=None):
-        if isinstance(value, unicode):
-            value = value.encode('utf-8')
+@CacheLogDecorator
+class BaseMemcachedCache(memcached.BaseMemcachedCache):
+        
+    def _get_memcache_timeout(self, timeout):
         if timeout is None:
             timeout = self.default_timeout
-        return self._cache.add(smart_str(key), value, timeout)
+        return timeout
     
-    @version_key_decorator
-    def get(self, *args, **kwargs):
-        return super(CacheClass, self).get(*args, **kwargs)
+    def append(self, key, value, version=None):
+        key = self.make_key(key, version=version)
+        self._cache.append(key, value)
     
-    @version_key_decorator
-    def set(self, key, value, timeout=None):
-        if isinstance(value, unicode):
-            value = value.encode('utf-8')
-        if timeout is None:
-            timeout = self.default_timeout
-        return self._cache.set(smart_str(key), value, timeout)
+    def prepend(self, key, value, version=None):
+        key = self.make_key(key, version=version)
+        self._cache.prepend(key, value)
     
-    @version_key_decorator
-    def delete(self, *args, **kwargs):
-        return super(CacheClass, self).delete(*args, **kwargs)
-    
-    @version_key_decorator
-    def get_many(self, *args, **kwargs):
-        return super(CacheClass, self).get_many(*args, **kwargs)
-    
-    @version_key_decorator
-    def incr(self, *args, **kwargs):
-        return super(CacheClass, self).incr(*args, **kwargs)
-    
-    @version_key_decorator
-    def smart_incr(self, key, delta=1, default=0, timeout=None):
+    def smart_incr(self, key, delta=1, default=0, **kwargs):
         try:
             return self.incr(key, delta=1)
         except ValueError:
             val = default + delta
-            self.add(key, val, timeout=timeout)
+            self.add(key, val, **kwargs)
             return val
-    
-    @version_key_decorator
-    def decr(self, *args, **kwargs):
-        return super(CacheClass, self).decr(*args, **kwargs)
-    
-    @version_key_decorator
-    def smart_decr(self, key, delta=1, default=0, timeout=None):
+
+    def smart_decr(self, key, delta=1, default=0, **kwargs):
         try:
             return self.incr(key, delta=1)
         except ValueError:
             val = default - delta
-            self.add(key, val, timeout=timeout)
+            self.add(key, val, **kwargs)
             return val
     
-    @version_key_decorator
-    def prepend(self, key, value):
-        return self._cache.prepend(smart_str(key), value)
-    
-    @version_key_decorator
-    def append(self, key, value):
-        return self._cache.append(smart_str(key), value)
-    
-    @version_key_decorator
-    def replace(self, key, value, timeout=None):
-        if isinstance(value, unicode):
-            value = value.encode('utf-8')
-        if timeout is None:
-            timeout = self.default_timeout
-        return self._cache.replace(smart_str(key), value, timeout)
-        
-    # multi operations, not in 1.1 yet, but are in 1.2
-    
-    @version_key_decorator
-    def set_many(self, data, timeout=None):
-        safe_data = {}
-        for key, value in data.items():
-            if isinstance(value, unicode):
-                value = value.encode('utf-8')
-            safe_data[smart_str(key)] = value
-        if timeout is None:
-            timeout = self.default_timeout
-        self._cache.set_multi(safe_data, timeout)
-    
-    @version_key_decorator
-    def delete_many(self, keys):
-        self._cache.delete_multi(map(smart_str, keys))
+    def replace(self, key, value, timeout=0, version=None):
+        key = self.make_key(key, version=version)
+        return self._cache.replace(key, value, self._get_memcache_timeout(timeout))
 
-    def clear(self):
-        self._cache.flush_all()
-    
-    
+
+class MemcachedCache(BaseMemcachedCache):
+    "An implementation of a cache binding using python-memcached"
+    def __init__(self, server, params):
+        import memcache
+        super(MemcachedCache, self).__init__(server, params,
+                                             library=memcache,
+                                             value_not_found_exception=ValueError)
+
+class PyLibMCCache(BaseMemcachedCache):
+    "An implementation of a cache binding using pylibmc"
+    def __init__(self, server, params):
+        import pylibmc
+        self._local = local()
+        super(PyLibMCCache, self).__init__(server, params,
+                                           library=pylibmc,
+                                           value_not_found_exception=pylibmc.NotFound)
+
+    @property
+    def _cache(self):
+        # PylibMC uses cache options as the 'behaviors' attribute.
+        # It also needs to use threadlocals, because some versions of
+        # PylibMC don't play well with the GIL.
+        client = getattr(self._local, 'client', None)
+        if client:
+            return client
+
+        client = self._lib.Client(self._servers)
+        if self._options:
+            client.behaviors = self._options
+
+        self._local.client = client
+
+        return client

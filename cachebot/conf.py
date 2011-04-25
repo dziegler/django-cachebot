@@ -3,7 +3,6 @@ import os
 from django.conf import settings
 
 CACHE_SECONDS = getattr(settings, 'CACHE_SECONDS', 0)
-CACHE_PREFIX = getattr(settings, 'CACHE_PREFIX', '').encode('utf-8')
 CACHEBOT_CACHE_GET = getattr(settings, 'CACHEBOT_CACHE_GET', True)
 CACHEBOT_CACHE_ALL = getattr(settings, 'CACHEBOT_CACHE_ALL', False)
 CACHEBOT_TABLE_BLACKLIST = getattr(settings, 'CACHEBOT_TABLE_BLACKLIST', ('django_session', 'django_content_type', 'south_migrationhistory'))
@@ -13,7 +12,5 @@ CACHEBOT_DEBUG_RESULTS = getattr(settings, 'CACHEBOT_DEBUG_RESULTS', False)
 CACHE_INVALIDATION_TIMEOUT = getattr(settings, 'CACHE_INVALIDATION_TIMEOUT', 5)
 RUNNING_TESTS = getattr(settings, 'RUNNING_TESTS', False)
 if RUNNING_TESTS:
-    CACHE_PREFIX = 'test_%s' % CACHE_PREFIX
-    CACHE_SECONDS = 600
     CACHEBOT_DEBUG_RESULTS = True
     CACHE_INVALIDATION_TIMEOUT = 1

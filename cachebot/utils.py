@@ -7,8 +7,6 @@ from django.db.models.base import ModelBase
 from django.db.models.query_utils import QueryWrapper
 from django.core.exceptions import ObjectDoesNotExist
 
-from cachebot.backends import version_key
-
 def set_value(obj, key, value):
     """Helper method to handle setting values in a CachedQuerySet or ValuesQuerySet object"""
     try:
@@ -16,7 +14,7 @@ def set_value(obj, key, value):
     except TypeError:
         setattr(obj, key, value)
 
-def get_invalidation_key(table_alias, accessor_path='', lookup_type='exact', negate=False, value=''):
+def get_invalidation_key(table_alias, accessor_path='', lookup_type='exact', negate=False, value='', version=None):
     """
     An invalidation key is associated with a set of cached queries. A blank accessor_path
     will create an invalidation key for this entire table instead of a specific row
@@ -33,7 +31,7 @@ def get_invalidation_key(table_alias, accessor_path='', lookup_type='exact', neg
             value = ''
 
     base_key = md5_constructor('.'.join((accessor_path, unicode(value))).encode('utf-8')).hexdigest()
-    return version_key('.'.join((table_alias, 'cachebot.invalidation', base_key)))
+    return cache.make_key('.'.join((table_alias, 'cachebot.invalidation', base_key)), version=version)
 
 def get_values(instance, accessor_path):
     accessor_split = accessor_path.split(LOOKUP_SEP)
@@ -104,7 +102,7 @@ def _get_nested_value(instance, accessor_split):
             yield value
     raise StopIteration
 
-def get_many_by_key(cache_key_f, item_keys):
+def get_many_by_key(cache_key_f, item_keys, version=None):
     """
     For a series of item keys and a function that maps these keys to cache keys,
     get all the items from the cache if they are available there.
@@ -114,7 +112,7 @@ def get_many_by_key(cache_key_f, item_keys):
     """
     cache_key_to_item_key = {}
     for item_key in item_keys:
-        cache_key = version_key(cache_key_f(item_key))
+        cache_key = cache.make_key(cache_key_f(item_key), version=version)
         cache_key_to_item_key[cache_key] = item_key
 
     # request from cache
@@ -176,7 +174,6 @@ def fetch_instances(model, field, values):
     return item_key_to_object
 
 def flush_cache(hard=True):
-    from cachebot import conf
     from cachebot.models import CacheBotSignals
     from cachebot.signals import cache_signals
 
@@ -185,5 +182,4 @@ def flush_cache(hard=True):
     if hard:
         cache.clear()
     else:
-        conf.CACHE_PREFIX = md5_constructor(conf.CACHE_PREFIX + str(time())).hexdigest()
-        
+        cache.version = int(time()*10000)

@@ -9,6 +9,22 @@ from cachebot import conf
 
 cachebot_log = logging.getLogger(__name__)
 
+LOG_FUNCS = ('append', 'prepend', 'replace', 'add', 'get', 'set', 'delete', 'get_many', 'incr', 'set_many', 'delete_many')
+
+def CacheLogDecorator(klass):
+    orig_init = klass.__init__
+    
+    def __init__(self, *args, **kwargs):
+        self._logger = CacheLogger()
+        orig_init(self, *args, **kwargs)
+    
+    if conf.CACHEBOT_ENABLE_LOG:
+        for func in LOG_FUNCS:
+            setattr(klass, func, logged_func(getattr(klass, func)))
+    
+    klass.__init__ = __init__
+    return klass
+    
 class CacheLogger(threading.local):
 
     def __init__(self):
@@ -28,7 +44,7 @@ class CacheLogInstance(object):
     
     def __repr__(self):
         return ' - '.join((self.name, str(self.key)))
-
+    
 def logged_func(func):
     def inner(instance, key, *args, **kwargs):
         t = time()

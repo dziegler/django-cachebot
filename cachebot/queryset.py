@@ -14,7 +14,6 @@ from cachebot import conf
 from cachebot.models import post_update
 from cachebot.signals import cache_signals
 from cachebot.utils import get_invalidation_key, get_values, set_value
-from cachebot.backends import version_key
 
 class CacheBot(object):
     
@@ -171,12 +170,12 @@ class CacheBot(object):
         
 class CachedQuerySetMixin(object):              
     
-    def get_cache_key(self, extra_args=''):
+    def get_cache_key(self, extra_args='', version=None):
         """Cache key used to identify this query"""
         query, params = self.query.get_compiler(using=self.db).as_sql()
         query_string = (query % params).strip().encode("utf-8")
         base_key = md5_constructor('.'.join((query_string, extra_args))).hexdigest()
-        return version_key('.'.join((self.model._meta.db_table, 'cachebot.results', base_key)))
+        return cache.make_key('.'.join((self.model._meta.db_table, 'cachebot.results', base_key)), version=version)
     
     def _get_model_class_from_table(self, table):
         """Helper method that accepts a table name and returns the Django model class it belongs to"""

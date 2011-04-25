@@ -12,16 +12,21 @@ Installation
 
 3. Set a cache backend to one of the backends in ``cachebots.backends``, for instance:: 
 
-    CACHE_BACKEND = 'cachebot.backends.memcached://127.0.0.1:11211/?timeout=0'
+    CACHES = {
+        'default': {
+            'BACKEND': 'cachebot.backends.memcached.MemcachedCache',
+            'LOCATION': '127.0.0.1:11211',
+        }
+    }
 
 Current supported backends are:: 
 
-    cachebot.backends.dummy
-    cachebot.backends.memcached
-    cachebot.backends.pylibmcd
+    cachebot.backends.dummy.DummyCache
+    cachebot.backends.memcached.MemcachedCache
+    cachebot.backends.memcached.PyLibMCCache
 
 
-4. **New in 0.3!** Cachebot doesn't monkey patch models anymore. If you want to add caching to a model, the model's manager needs to be ``CacheBotManager`` or a subclass of it, e.g::
+4. If you want to add caching to a model, the model's manager needs to be ``CacheBotManager`` or a subclass of it, e.g::
     
     from django.db import models
     from cachebot.managers import CacheBotManager
@@ -43,11 +48,11 @@ Current supported backends are::
 Usage
 ******
 
-By default, all ``get`` queries will be cached::
+By default, all ``get`` queries for ``CacheBotManager`` will be cached::
     
     photo = Photo.objects.get(user=user)
 
-If you don't want this, call ``CacheBotManager(cache_get=False)`` when defining the manager, or set ``CACHEBOT_CACHE_GET=False`` in settings.
+If you don't want this behavior, call ``CacheBotManager(cache_get=False)`` when defining the manager, or to change this globally set ``CACHEBOT_CACHE_GET=False`` in settings.
 
 ------------
 
@@ -94,10 +99,11 @@ Settings
    - default: ``True``
    - If set to ``True``, ``CacheBotManager`` will be called with ``cache_get=True`` by default.
 
- - ``CACHE_PREFIX``  
+ - ``CACHEBOT_TABLE_BLACKLIST``
  
-   - default: ``''``
-   - Suppose you have a development and production server sharing the same memcached server. Normally this is a bad idea because each server might be overwriting the other server's cache keys. If you add ``CACHE_PREFIX`` to your settings, all cache keys will have that prefix appended to them so you can avoid this problem.
+   - default: ('django_session', 'django_content_type', 'south_migrationhistory')
+   - A list of tables that cachebot should ignore.
+   
 
 Caveats (Important!)
 ********************
@@ -131,5 +137,7 @@ Caveats (Important!)
 Dependencies
 *************
 
-* Django 1.2
+* Django 1.3
+
+If you use Django 1.2, you can use django-cachebot version 0.3.1
 

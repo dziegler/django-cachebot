@@ -7,7 +7,6 @@ from django.utils.hashcompat import md5_constructor
 from cachebot import conf
 from cachebot.models import CacheBotSignals, post_update
 from cachebot.utils import get_invalidation_key, get_values
-from cachebot.backends import version_key
 
 if conf.CACHEBOT_ENABLE_LOG:
     request_finished.connect(cache._logger.reset)
@@ -26,8 +25,8 @@ class CacheSignals(object):
     def __init__(self):
         self.__dict__ = self.__shared_state
  
-    def get_lookup_key(self, model_class):
-        return version_key('.'.join(('cachesignals', model_class._meta.db_table)))
+    def get_lookup_key(self, model_class, version=None):
+        return cache.make_key('.'.join(('cachesignals', model_class._meta.db_table)), version=version)
     
     def get_local_signals(self, model_class):
         accessor_set = self.local_signals.get(model_class._meta.db_table)
@@ -74,14 +73,14 @@ class CacheSignals(object):
 
 cache_signals = CacheSignals()
 
-def load_cache_signals(**kwargs):
+def load_cache_signals(version=None, **kwargs):
     """On startup, sync signals with registered models"""
     if not cache_signals.ready:
         results = CacheBotSignals.objects.all()
         tables = [r.table_name for r in results]
         mapping = cache.get_many(tables)
         for result in results:
-            key = version_key(u'.'.join(('cachesignals', result.table_name)))
+            key = cache.make_key(u'.'.join(('cachesignals', result.table_name)), version=version)
             accessor_set = mapping.get(key) or set()
             accessor_set.add((result.accessor_path, result.lookup_type, result.exclude))
             mapping[key] = accessor_set
