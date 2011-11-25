@@ -228,8 +228,8 @@ class CachedQuerySetMixin(object):
     
     def _get_reverse_relations(self, model_class):
         for related in chain(model_class._meta.get_all_related_objects(), model_class._meta.get_all_related_many_to_many_objects()):
-            if related.opts.db_table in self.query.tables:
-                related_name = related.get_accessor_name() or related.var_name
+            if related.opts.db_table in self.query.tables and related.model != model_class:
+                related_name = related.get_accessor_name()
                 yield related_name, related
                 if related.model != related.parent_model:
                     for attname, join_related in self._get_reverse_relations(related.model):
